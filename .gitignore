@@ -1,0 +1,40 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+
+# uv
+uv.lock
+
+# Node / TypeScript
+node_modules/
+dist/
+.next/
+*.tsbuildinfo
+
+# Runtime state
+uploads/
+state/
+data/
+logs/
+*.log
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+.claude/
+.codex/
+.openclaw/
+.pi/
+.agents/
