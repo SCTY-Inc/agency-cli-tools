@@ -1,0 +1,42 @@
+{
+  "artifact_type": "run_result.v1",
+  "schema_version": "v1",
+  "run_id": "givecare.run.social-fall-checkin.retry2.2026-04-12t180500z",
+  "parent_run_id": "givecare.run.social-fall-checkin.retry1.2026-04-12t175500z",
+  "brief_id": "givecare.brief.fall-checkin.social-email.2026-04-12",
+  "brand_id": "givecare.brand.core",
+  "writer": {
+    "repo": "cli-phantom",
+    "module": "agentcy-loom"
+  },
+  "workflow": "social.post",
+  "status": "failed",
+  "current_step": "publish",
+  "started_at": "2026-04-12T18:05:00Z",
+  "completed_at": "2026-04-12T18:05:47Z",
+  "delivery": {
+    "dry_run": false,
+    "platforms": [
+      {
+        "platform": "linkedin",
+        "status": "failed",
+        "message": "LinkedIn post creation failed: 401 unauthorized"
+      },
+      {
+        "platform": "instagram",
+        "status": "skipped",
+        "message": "Skipped after upstream publish failure."
+      }
+    ],
+    "selected_variant_id": "givecare.variant.fall-checkin.social.v1"
+  },
+  "error": {
+    "step": "publish",
+    "message": "LinkedIn post creation failed: 401 unauthorized"
+  },
+  "lineage": {
+    "source_voice_pack_id": "givecare.voice.fall-checkin.v1",
+    "campaign_id": "givecare.campaign.fall-checkin.2026q2",
+    "signal_id": "givecare.signal.support-calls.fall-2026-04"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "artifact_type": "voice_pack.v1",
+  "schema_version": "v1",
+  "voice_pack_id": "givecare.voice.fall-checkin.v1",
+  "brand_id": "givecare.brand.core",
+  "writer": {
+    "repo": "cli-prsna",
+    "module": "agentcy-vox"
+  },
+  "name": "GiveCare fall check-in voice pack",
+  "summary": "Trust-building caregiver voice for seasonal planning, support, and next-step clarity.",
+  "traits": ["empathetic", "steady", "credible"],
+  "voice": {
+    "tone": ["warm", "calm", "encouraging"],
+    "style": ["plainspoken", "specific", "non-judgmental"],
+    "audience": ["family caregivers", "adult children coordinating care"]
+  },
+  "constraints": {
+    "dos": [
+      "acknowledge emotional load without melodrama",
+      "offer one concrete next step",
+      "prefer direct, supportive language"
+    ],
+    "donts": [
+      "sound clinical or robotic",
+      "overpromise outcomes",
+      "shame families for being late to plan"
+    ],
+    "lexicon": {
+      "preferred": ["care plan", "support", "next step"],
+      "avoid": ["crushing burden", "miracle fix"]
+    }
+  },
+  "examples": [
+    {
+      "label": "email opener",
+      "text": "If fall routines are changing fast, a simple care plan can make the next few weeks feel more manageable."
+    },
+    {
+      "label": "cta",
+      "text": "Start with one conversation and one shared checklist."
+    }
+  ],
+  "source": {
+    "persona_id": "givecare.persona.core",
+    "persona_version": "2026-04-12",
+    "notes": "Derived from the canonical caregiver persona in cli-prsna."
+  }
+}

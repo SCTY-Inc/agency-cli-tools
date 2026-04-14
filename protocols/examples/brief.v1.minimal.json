@@ -1,0 +1,30 @@
+{
+  "artifact_type": "brief.v1",
+  "schema_version": "v1",
+  "brief_id": "givecare.brief.fall-checkin.2026-04-12",
+  "brand_id": "givecare.brand.core",
+  "voice_pack_id": "givecare.voice.default.v1",
+  "writer": {
+    "repo": "brand-os",
+    "module": "agentcy-compass"
+  },
+  "objective": "Drive caregiver engagement around fall planning.",
+  "signal": {
+    "source": "seasonal-caregiving-observation",
+    "summary": "Families feel stress as routines change entering fall."
+  },
+  "strategy": {
+    "angle": "Position planning as relief, not more work.",
+    "cta": "Download the fall care checklist.",
+    "platforms": ["email"]
+  },
+  "policy": {
+    "verdict": "approved",
+    "confidence": 0.91
+  },
+  "creative": {
+    "headline": "A calmer way to prepare for fall caregiving",
+    "copy": "A short plan today can make the next family decision easier tomorrow.",
+    "tone_notes": ["warm", "specific"]
+  }
+}

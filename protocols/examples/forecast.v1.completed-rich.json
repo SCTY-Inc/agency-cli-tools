@@ -1,0 +1,80 @@
+{
+  "artifact_type": "forecast.v1",
+  "schema_version": "v1",
+  "forecast_id": "givecare.forecast.fall-checkin.completed-rich.2026-04-12",
+  "brief_id": "givecare.brief.fall-checkin.social-email.2026-04-12",
+  "brand_id": "givecare.brand.core",
+  "writer": {
+    "repo": "cli-mirofish",
+    "module": "agentcy-echo"
+  },
+  "status": "completed",
+  "completed_at": "2026-04-12T05:24:00Z",
+  "timeframe": "7d-post-publish",
+  "summary": {
+    "thesis": "The strongest outcome comes from framing fall planning as shared family relief, with LinkedIn outperforming lower-context channels for saves and comments.",
+    "confidence": 0.83,
+    "recommended_action": "Publish the practical-relief variant first, then adapt the same thesis into a shorter Instagram caption and checklist CTA."
+  },
+  "scenarios": [
+    {
+      "scenario_id": "givecare.scenario.fall-checkin.base.v1",
+      "label": "practical-relief-resonates",
+      "probability": 0.58,
+      "narrative": "Caregivers engage when the message emphasizes a lighter mental load and one simple planning step.",
+      "drivers": [
+        "Operational framing matches support-call language.",
+        "Checklist CTA gives readers an immediate next step."
+      ],
+      "implications": [
+        "Lead with family coordination relief.",
+        "Keep copy concrete and non-clinical."
+      ]
+    },
+    {
+      "scenario_id": "givecare.scenario.fall-checkin.overwhelm-risk.v1",
+      "label": "too-many-tasks-feels-heavy",
+      "probability": 0.27,
+      "narrative": "Engagement softens if the content reads like another burden rather than a simplification tool.",
+      "drivers": [
+        "Dense copy can amplify caregiver fatigue.",
+        "Long lists without reassurance feel demanding."
+      ],
+      "implications": [
+        "Use a single clear CTA.",
+        "Balance urgency with reassurance."
+      ]
+    },
+    {
+      "scenario_id": "givecare.scenario.fall-checkin.generic-advice.v1",
+      "label": "generic-wellness-underperforms",
+      "probability": 0.15,
+      "narrative": "Generic encouragement without operational detail is least likely to create saves, shares, or follow-through.",
+      "drivers": [
+        "Audience already sees generic encouragement elsewhere."
+      ],
+      "implications": [
+        "Avoid vague motivational framing."
+      ]
+    }
+  ],
+  "lineage": {
+    "source_brief_id": "givecare.brief.fall-checkin.social-email.2026-04-12",
+    "source_voice_pack_id": "givecare.voice.fall-checkin.v1",
+    "campaign_id": "givecare.campaign.fall-checkin.2026q2",
+    "signal_id": "givecare.signal.support-calls.fall-2026-04"
+  },
+  "provenance": {
+    "project_id": "givecare.project.fall-briefing.v1",
+    "graph_id": "givecare.graph.social-forecast.v3",
+    "simulation_id": "givecare.simulation.fall-checkin.2026-04-12t0518z",
+    "report_id": "givecare.report.fall-checkin.2026-04-12"
+  },
+  "artifacts": {
+    "report_path": "state/reports/givecare/fall-checkin/report.json",
+    "snapshot_paths": [
+      "state/reports/givecare/fall-checkin/scenarios/base.json",
+      "state/reports/givecare/fall-checkin/scenarios/risk.json"
+    ]
+  }
+}

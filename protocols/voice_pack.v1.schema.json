@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentcy.dev/protocols/voice_pack.v1.schema.json",
+  "title": "voice_pack.v1",
+  "description": "Canonical Agentcy family voice artifact authored by agentcy-vox / cli-prsna.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_type",
+    "schema_version",
+    "voice_pack_id",
+    "brand_id",
+    "writer",
+    "name",
+    "summary",
+    "voice",
+    "constraints"
+  ],
+  "properties": {
+    "artifact_type": {
+      "const": "voice_pack.v1"
+    },
+    "schema_version": {
+      "const": "v1"
+    },
+    "voice_pack_id": {
+      "$ref": "#/$defs/id"
+    },
+    "brand_id": {
+      "$ref": "#/$defs/id"
+    },
+    "writer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "module"],
+      "properties": {
+        "repo": { "const": "cli-prsna" },
+        "module": { "const": "agentcy-vox" }
+      }
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "traits": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "default": []
+    },
+    "voice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tone", "style", "audience"],
+      "properties": {
+        "tone": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "style": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "audience": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dos", "donts"],
+      "properties": {
+        "dos": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "donts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "lexicon": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "preferred": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true,
+              "default": []
+            },
+            "avoid": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true,
+              "default": []
+            }
+          }
+        }
+      }
+    },
+    "examples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "text"],
+        "properties": {
+          "label": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "minLength": 1 }
+        }
+      },
+      "default": []
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "persona_id": { "$ref": "#/$defs/id" },
+        "persona_version": { "type": "string", "minLength": 1 },
+        "notes": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "artifact_type": "forecast.v1",
+  "schema_version": "v1",
+  "forecast_id": "givecare.forecast.fall-checkin.completed.2026-04-12",
+  "brief_id": "givecare.brief.fall-checkin.social-email.2026-04-12",
+  "brand_id": "givecare.brand.core",
+  "writer": {
+    "repo": "cli-mirofish",
+    "module": "agentcy-echo"
+  },
+  "status": "completed",
+  "completed_at": "2026-04-12T05:10:00Z",
+  "summary": {
+    "thesis": "Caregiver audiences are likely to respond best to practical planning content framed as stress reduction for the whole family.",
+    "confidence": 0.76
+  },
+  "scenarios": [
+    {
+      "scenario_id": "givecare.scenario.fall-checkin.base.v1",
+      "label": "practical-relief-resonates",
+      "probability": 0.64,
+      "narrative": "Messages that present one concrete next step and family coordination benefits are the most likely to earn saves and shares."
+    }
+  ],
+  "lineage": {
+    "source_brief_id": "givecare.brief.fall-checkin.social-email.2026-04-12"
+  }
+}

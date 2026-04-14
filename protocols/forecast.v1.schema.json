@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentcy.dev/protocols/forecast.v1.schema.json",
+  "title": "forecast.v1",
+  "description": "Canonical Agentcy family completed forecast artifact authored by agentcy-echo / cli-mirofish.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_type",
+    "schema_version",
+    "forecast_id",
+    "brief_id",
+    "brand_id",
+    "writer",
+    "status",
+    "completed_at",
+    "summary",
+    "scenarios"
+  ],
+  "properties": {
+    "artifact_type": {
+      "const": "forecast.v1"
+    },
+    "schema_version": {
+      "const": "v1"
+    },
+    "forecast_id": {
+      "$ref": "#/$defs/id"
+    },
+    "brief_id": {
+      "$ref": "#/$defs/id"
+    },
+    "brand_id": {
+      "$ref": "#/$defs/id"
+    },
+    "writer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "module"],
+      "properties": {
+        "repo": { "const": "cli-mirofish" },
+        "module": { "const": "agentcy-echo" }
+      }
+    },
+    "status": {
+      "const": "completed"
+    },
+    "completed_at": {
+      "$ref": "#/$defs/dateTime"
+    },
+    "timeframe": {
+      "type": "string",
+      "minLength": 1
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["thesis", "confidence"],
+      "properties": {
+        "thesis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "recommended_action": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["scenario_id", "label", "probability", "narrative"],
+        "properties": {
+          "scenario_id": {
+            "$ref": "#/$defs/id"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "probability": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "narrative": {
+            "type": "string",
+            "minLength": 1
+          },
+          "drivers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": []
+          },
+          "implications": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": []
+          }
+        }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_brief_id"],
+      "properties": {
+        "source_brief_id": {
+          "$ref": "#/$defs/id"
+        },
+        "source_voice_pack_id": {
+          "$ref": "#/$defs/id"
+        },
+        "campaign_id": {
+          "$ref": "#/$defs/id"
+        },
+        "signal_id": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "$ref": "#/$defs/id"
+        },
+        "graph_id": {
+          "$ref": "#/$defs/id"
+        },
+        "simulation_id": {
+          "$ref": "#/$defs/id"
+        },
+        "report_id": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "report_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "snapshot_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"
+    },
+    "dateTime": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

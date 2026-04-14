@@ -1,0 +1,45 @@
+{
+  "artifact_type": "run_result.v1",
+  "schema_version": "v1",
+  "run_id": "givecare.run.social-fall-checkin.dryrun.2026-04-12t041500z",
+  "brief_id": "givecare.brief.fall-checkin.social-email.2026-04-12",
+  "brand_id": "givecare.brand.core",
+  "writer": {
+    "repo": "cli-phantom",
+    "module": "agentcy-loom"
+  },
+  "workflow": "social.post",
+  "status": "dry_run",
+  "current_step": "publish",
+  "started_at": "2026-04-12T04:15:00Z",
+  "completed_at": "2026-04-12T04:16:12Z",
+  "review": {
+    "decision": "approved",
+    "summary": "Operator approved simulated social delivery for external review."
+  },
+  "delivery": {
+    "dry_run": true,
+    "platforms": [
+      {
+        "platform": "linkedin",
+        "status": "simulated",
+        "message": "Dry-run only; no post was sent."
+      },
+      {
+        "platform": "instagram",
+        "status": "simulated",
+        "message": "Dry-run only; caption and asset export validated."
+      }
+    ],
+    "export_paths": [
+      "state/exports/givecare/run-social-fall-checkin/linkedin.txt",
+      "state/exports/givecare/run-social-fall-checkin/instagram.txt"
+    ],
+    "selected_variant_id": "givecare.variant.fall-checkin.social.v1"
+  },
+  "lineage": {
+    "source_voice_pack_id": "givecare.voice.fall-checkin.v1",
+    "campaign_id": "givecare.campaign.fall-checkin.2026q2",
+    "signal_id": "givecare.signal.support-calls.fall-2026-04"
+  }
+}

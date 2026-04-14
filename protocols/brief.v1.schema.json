@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentcy.dev/protocols/brief.v1.schema.json",
+  "title": "brief.v1",
+  "description": "Canonical Agentcy family planning artifact authored by agentcy-compass / brand-os.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_type",
+    "schema_version",
+    "brief_id",
+    "brand_id",
+    "writer",
+    "voice_pack_id",
+    "objective",
+    "signal",
+    "strategy",
+    "policy",
+    "creative"
+  ],
+  "properties": {
+    "artifact_type": {
+      "const": "brief.v1"
+    },
+    "schema_version": {
+      "const": "v1"
+    },
+    "brief_id": {
+      "$ref": "#/$defs/id"
+    },
+    "brand_id": {
+      "$ref": "#/$defs/id"
+    },
+    "voice_pack_id": {
+      "$ref": "#/$defs/id"
+    },
+    "writer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "module"],
+      "properties": {
+        "repo": { "const": "brand-os" },
+        "module": { "const": "agentcy-compass" }
+      }
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "summary"],
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "default": []
+        }
+      }
+    },
+    "strategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["angle", "cta", "platforms"],
+      "properties": {
+        "angle": { "type": "string", "minLength": 1 },
+        "cta": { "type": "string", "minLength": 1 },
+        "platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verdict", "confidence"],
+      "properties": {
+        "verdict": {
+          "type": "string",
+          "enum": ["approved", "escalate", "deny"]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "default": []
+        }
+      }
+    },
+    "creative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["headline", "copy", "tone_notes"],
+      "properties": {
+        "headline": { "type": "string", "minLength": 1 },
+        "copy": { "type": "string", "minLength": 1 },
+        "tone_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "deliverables": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "channel"],
+            "properties": {
+              "kind": { "type": "string", "minLength": 1 },
+              "channel": { "type": "string", "minLength": 1 },
+              "notes": { "type": "string" }
+            }
+          },
+          "default": []
+        }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_voice_pack_id": { "$ref": "#/$defs/id" },
+        "campaign_id": { "$ref": "#/$defs/id" },
+        "signal_id": { "$ref": "#/$defs/id" }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"
+    }
+  }
+}

@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentcy.dev/protocols/performance.v1.schema.json",
+  "title": "performance.v1",
+  "description": "Canonical Agentcy family measurement artifact authored by agentcy-pulse / cli-metrics. This first slice is intentionally limited to aggregate performance snapshots for published social.post outcomes only and excludes tokens, secrets, auth material, audience-level data, and user-level PII. During loop 7, this schema also serves as part of the minimum birth contract for any future cli-metrics repo so naming work stays bounded to the already-proven measurement seam rather than expanding into bootstrap or analytics-platform design.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_type",
+    "schema_version",
+    "performance_id",
+    "run_id",
+    "brief_id",
+    "brand_id",
+    "writer",
+    "workflow",
+    "measured_at",
+    "observations"
+  ],
+  "properties": {
+    "artifact_type": {
+      "const": "performance.v1"
+    },
+    "schema_version": {
+      "const": "v1"
+    },
+    "performance_id": {
+      "$ref": "#/$defs/id"
+    },
+    "run_id": {
+      "$ref": "#/$defs/id"
+    },
+    "brief_id": {
+      "$ref": "#/$defs/id"
+    },
+    "brand_id": {
+      "$ref": "#/$defs/id"
+    },
+    "writer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "module"],
+      "properties": {
+        "repo": { "const": "cli-metrics" },
+        "module": { "const": "agentcy-pulse" }
+      }
+    },
+    "workflow": {
+      "const": "social.post"
+    },
+    "measured_at": {
+      "$ref": "#/$defs/dateTime"
+    },
+    "window": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional aggregate measurement window label such as 24h-post-publish or 7d-post-publish."
+    },
+    "observations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/observation"
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_voice_pack_id": {
+          "$ref": "#/$defs/id"
+        },
+        "campaign_id": {
+          "$ref": "#/$defs/id"
+        },
+        "signal_id": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "notes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "default": []
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"
+    },
+    "dateTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nonNegativeInteger": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "nonNegativeNumber": {
+      "type": "number",
+      "minimum": 0
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform"],
+      "properties": {
+        "platform": {
+          "type": "string",
+          "minLength": 1
+        },
+        "post_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "published_at": {
+          "$ref": "#/$defs/dateTime"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/dateTime"
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "impressions": { "$ref": "#/$defs/nonNegativeInteger" },
+            "reach": { "$ref": "#/$defs/nonNegativeInteger" },
+            "engagements": { "$ref": "#/$defs/nonNegativeInteger" },
+            "reactions": { "$ref": "#/$defs/nonNegativeInteger" },
+            "likes": { "$ref": "#/$defs/nonNegativeInteger" },
+            "comments": { "$ref": "#/$defs/nonNegativeInteger" },
+            "shares": { "$ref": "#/$defs/nonNegativeInteger" },
+            "saves": { "$ref": "#/$defs/nonNegativeInteger" },
+            "clicks": { "$ref": "#/$defs/nonNegativeInteger" },
+            "video_views": { "$ref": "#/$defs/nonNegativeInteger" },
+            "engagement_rate": { "$ref": "#/$defs/nonNegativeNumber" },
+            "ctr": { "$ref": "#/$defs/nonNegativeNumber" }
+          }
+        }
+      },
+      "anyOf": [
+        { "required": ["post_id"] },
+        { "required": ["url"] }
+      ]
+    }
+  }
+}

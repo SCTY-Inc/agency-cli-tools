@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentcy.dev/protocols/run_result.v1.schema.json",
+  "title": "run_result.v1",
+  "description": "Canonical Agentcy family execution outcome artifact authored by agentcy-loom / cli-phantom.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_type",
+    "schema_version",
+    "run_id",
+    "brief_id",
+    "brand_id",
+    "writer",
+    "workflow",
+    "status",
+    "started_at",
+    "completed_at"
+  ],
+  "properties": {
+    "artifact_type": {
+      "const": "run_result.v1"
+    },
+    "schema_version": {
+      "const": "v1"
+    },
+    "run_id": {
+      "$ref": "#/$defs/id"
+    },
+    "parent_run_id": {
+      "$ref": "#/$defs/id"
+    },
+    "brief_id": {
+      "$ref": "#/$defs/id"
+    },
+    "brand_id": {
+      "$ref": "#/$defs/id"
+    },
+    "writer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "module"],
+      "properties": {
+        "repo": { "const": "cli-phantom" },
+        "module": { "const": "agentcy-loom" }
+      }
+    },
+    "workflow": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["dry_run", "published", "failed"]
+    },
+    "current_step": {
+      "type": "string",
+      "minLength": 1
+    },
+    "started_at": {
+      "$ref": "#/$defs/dateTime"
+    },
+    "completed_at": {
+      "$ref": "#/$defs/dateTime"
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": ["approved", "rejected", "needs_revision"]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dry_run": {
+          "type": "boolean"
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["platform", "status"],
+            "properties": {
+              "platform": {
+                "type": "string",
+                "minLength": 1
+              },
+              "status": {
+                "type": "string",
+                "enum": ["simulated", "published", "failed", "skipped"]
+              },
+              "post_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "default": []
+        },
+        "export_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "selected_variant_id": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step", "message"],
+      "properties": {
+        "step": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_voice_pack_id": {
+          "$ref": "#/$defs/id"
+        },
+        "campaign_id": {
+          "$ref": "#/$defs/id"
+        },
+        "signal_id": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": { "const": "dry_run" }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {
+            "required": ["dry_run"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "const": "published" }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {
+            "required": ["platforms"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "const": "failed" }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["error"]
+      }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"
+    },
+    "dateTime": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
