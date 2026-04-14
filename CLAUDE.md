@@ -51,7 +51,7 @@ All inter-tool contracts live in `protocols/`:
 - `brief.v1.schema.json` — compass → echo, loom
 - `forecast.v1.schema.json` — echo → pulse calibrate
 - `run_result.v1.schema.json` — loom → pulse adapt
-- `performance.v1.schema.json` — pulse → lab calibrate
+- `performance.v1.schema.json` — pulse adapt output; pulse calibrate input
 - `voice_pack.v1.schema.json` — vox → compass, loom
 
 ## Standard interface
