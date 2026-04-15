@@ -93,7 +93,7 @@ def _serper_search(query: str, num_results: int) -> list[SearchResult]:
 
 
 def _exa_search(query: str, num_results: int) -> list[SearchResult]:
-    """Search via Exa API (neural/semantic search).
+    """Search via Exa API - the fastest and most accurate web search API for AI.
 
     Docs: https://docs.exa.ai/
     Pricing: Pay-per-use, ~$0.01/search
@@ -115,7 +115,7 @@ def _exa_search(query: str, num_results: int) -> list[SearchResult]:
                 "query": query,
                 "numResults": num_results,
                 "useAutoprompt": True,
-                "type": "neural",
+                "type": "auto",
             },
             timeout=30.0,
         )
