@@ -7,7 +7,9 @@ Autonomous brand communications agent. brand.yml is the operating spec — pilla
 - npm package: `agentcy-loom`
 - CLI bin: `agentcy-loom` (via `node bin/loom.js`)
 - dispatcher alias: `agentcy loom ...`
-- writer contract: `run_result.v1.writer = { repo: "agentcy", module: "agentcy-loom" }`
+- writer contract: `run_result.v1.writer = { repo: "cli-phantom", module: "agentcy-loom" }`
+
+The package and CLI are Agentcy-branded, but canonical protocol lineage still keeps the historical `writer.repo` value for compatibility.
 
 ## Active Surface
 
@@ -78,7 +80,7 @@ runtime/
     render/
       gemini.ts    shared Gemini API (generateText + generateImage)
       card.ts      deterministic proportional card renderer (lab)
-      social.ts    two-phase social renderer (Gemini art + canvas text)
+      social.ts    two-phase social renderer (Gemini art + deterministic text composite; canvas optional)
       dither.ts    procedural art subjects + Bayer 4×4 dithering
       colors.ts    shared color math (hexToRgb, muted)
       fonts.ts     shared font registration (idempotent)
@@ -115,9 +117,9 @@ Pipeline steps: `signal → brief → draft → explore → image → render`
 
 1. **Signal** — topic from `--topic` flag, or auto-discovered via Gemini from brand pillar signals when omitted.
 2. **Draft** — LLM-generated copy via Gemini using brand voice rules as prompt constraints. Falls back to templates without API key.
-3. **Render** — two-phase: Gemini generates art-only image (no text/logos via `image_prompt` with `[SUBJECT]` slot), canvas composites typography + logo on top. Per-platform assets (Twitter 16:9, LinkedIn 1:1, Facebook 1:1, Instagram 4:5, Threads 4:5).
+3. **Render** — two-phase: Gemini generates art-only image (no text/logos via `image_prompt` with `[SUBJECT]` slot), then the runtime composites typography + logo deterministically. The preferred path uses native canvas when available, with an SVG/resvg fallback when it is not. Per-platform assets (Twitter 16:9, LinkedIn 1:1, Facebook 1:1, Instagram 4:5, Threads 4:5).
 
-Requires `GEMINI_API_KEY` or `GOOGLE_API_KEY`. Without keys, copy falls back to templates, images fall back to solid-color canvas.
+Requires `GEMINI_API_KEY` or `GOOGLE_API_KEY`. Without keys, copy falls back to templates and images fall back to deterministic generated backgrounds. CLI startup and `help --json` no longer require native canvas to be installed.
 
 ## Card Renderer (lab render)
 

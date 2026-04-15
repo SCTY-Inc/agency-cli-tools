@@ -27,7 +27,7 @@ def send_report(
     except ImportError:
         return {
             "success": False,
-            "error": "resend required. Install with: pip install brand-os[email]",
+            "error": "resend required. Install with: pip install agentcy-compass[email]",
         }
 
     api_key = os.getenv("RESEND_API_KEY")

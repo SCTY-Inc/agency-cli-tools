@@ -10,10 +10,10 @@ def create_app():
     try:
         from fastapi import FastAPI
     except ImportError:
-        raise ImportError("fastapi required. Install with: pip install brand-os[server]")
+        raise ImportError("fastapi required. Install with: pip install agentcy-compass[server]")
 
     app = FastAPI(
-        title="brandos",
+        title="agentcy-compass",
         description="Brand operations API",
         version="0.1.0",
     )
@@ -41,7 +41,7 @@ def run_server(host: str = "127.0.0.1", port: int = 8000):
     try:
         import uvicorn
     except ImportError:
-        raise ImportError("uvicorn required. Install with: pip install brand-os[server]")
+        raise ImportError("uvicorn required. Install with: pip install agentcy-compass[server]")
 
     app = create_app()
     uvicorn.run(app, host=host, port=port)

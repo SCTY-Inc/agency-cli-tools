@@ -1,5 +1,13 @@
 # Solutions Log
 
+## 2026-04-15 — Packaged Loom launcher now resolves `tsx` from the runtime root
+- Problem: `node bin/loom.js help --json` could fail from the monorepo root because the launcher inherited the caller cwd and Node could not resolve the runtime-local `tsx` dependency.
+- Fix: `bin/loom.js` now spawns Node with `cwd` pinned to `runtime/`, so packaged help and doctor-style probes resolve `tsx` consistently.
+
+## 2026-04-15 — CLI help and social workflows no longer hard-fail without native canvas
+- Problem: `agentcy-loom` imported canvas-backed render modules at startup, so even `help` and unrelated CLI tests crashed when `canvas.node` was unavailable.
+- Fix: lazy-load command modules, lazy-load the social renderer inside workflow steps, and fall back to SVG/resvg social asset rendering when native canvas bindings are missing.
+
 ## 2026-04-01 — Fonts not rendering on Linux/Hetzner
 - Problem: Card renderer used system fonts (Alegreya, Inter, JetBrains Mono) that exist on macOS but not on Linux servers. `registerFont` was imported but never called. JetBrains Mono wasn't bundled at all.
 - Fix: Bundle all TTFs in `runtime/fonts/`, call `registerFont()` at startup via shared `render/fonts.ts`. Un-ignore TTFs in `.gitignore` so they deploy.

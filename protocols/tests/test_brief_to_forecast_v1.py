@@ -9,10 +9,10 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[2]
 PROTOCOLS_DIR = ROOT / "protocols"
 EXAMPLES_DIR = PROTOCOLS_DIR / "examples"
-BRAND_OS_DIR = ROOT / "brand-os"
-CLI_MIROFISH_DIR = ROOT / "cli-mirofish"
+BRAND_OS_DIR = ROOT / "compass"
+ECHO_DIR = ROOT / "echo"
 
-sys.path.insert(0, str(CLI_MIROFISH_DIR))
+sys.path.insert(0, str(ECHO_DIR))
 
 from app.brief_v1 import import_brief_v1  # noqa: E402
 from app.cli import main  # noqa: E402

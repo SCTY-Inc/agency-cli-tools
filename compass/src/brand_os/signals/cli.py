@@ -110,9 +110,9 @@ def discover_subreddits(
     """Discover relevant subreddits.
 
     Examples:
-        brandos signals discover-subreddits --query "AI startup"
-        brandos signals discover-subreddits --brand acme
-        brandos signals discover-subreddits --industry "B2B SaaS" --query "automation"
+        agentcy-compass signals discover-subreddits --query "AI startup"
+        agentcy-compass signals discover-subreddits --brand acme
+        agentcy-compass signals discover-subreddits --industry "B2B SaaS" --query "automation"
     """
     from rich.table import Table
     from brand_os.signals.sources.reddit_discover import SubredditDiscovery

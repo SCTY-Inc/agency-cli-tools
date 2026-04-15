@@ -8,8 +8,8 @@ import pytest
 from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "cli-prsna" / "src"))
-sys.path.insert(0, str(ROOT / "brand-os" / "src"))
+sys.path.insert(0, str(ROOT / "vox" / "src"))
+sys.path.insert(0, str(ROOT / "compass" / "src"))
 
 from prsna.exporters import export_voice_pack  # noqa: E402
 from prsna.persona import Persona  # noqa: E402
@@ -18,8 +18,8 @@ from brand_os.plan.brief_v1 import build_brief_v1, load_voice_pack_v1, write_bri
 
 PROTOCOLS_DIR = ROOT / "protocols"
 EXAMPLES_DIR = PROTOCOLS_DIR / "examples"
-VOICE_FIXTURES_DIR = ROOT / "cli-prsna" / "tests" / "fixtures" / "voice_pack"
-BRAND_OS_FIXTURES_DIR = ROOT / "brand-os" / "tests" / "fixtures"
+VOICE_FIXTURES_DIR = ROOT / "vox" / "tests" / "fixtures" / "voice_pack"
+BRAND_OS_FIXTURES_DIR = ROOT / "compass" / "tests" / "fixtures"
 
 
 class _Voice:

@@ -34,9 +34,9 @@ def loop_start(
     within policy boundaries.
 
     Examples:
-        brandos loop start
-        brandos loop start --brand acme --brand beta
-        brandos loop start --interval 60
+        agentcy-compass loop start
+        agentcy-compass loop start --brand acme --brand beta
+        agentcy-compass loop start --interval 60
     """
     from brand_os.loop import AutonomousLoop, LoopConfig, LoopEvent
 
@@ -157,9 +157,9 @@ def decision_list(
     """List decisions with optional filters.
 
     Examples:
-        brandos decision list
-        brandos decision list --brand acme --status pending_review
-        brandos decision list --format json
+        agentcy-compass decision list
+        agentcy-compass decision list --brand acme --status pending_review
+        agentcy-compass decision list --format json
     """
     from brand_os.core.decision import DecisionStatus, list_decisions
 
@@ -223,9 +223,9 @@ def decision_approve(
     """Approve a pending decision.
 
     Examples:
-        brandos decision approve abc123
-        brandos decision approve abc123 --reason "Reviewed and approved"
-        brandos decision approve abc123 --execute
+        agentcy-compass decision approve abc123
+        agentcy-compass decision approve abc123 --reason "Reviewed and approved"
+        agentcy-compass decision approve abc123 --execute
     """
     from brand_os.core.decision import DecisionStatus, get_decision, get_decision_log
 
@@ -258,7 +258,7 @@ def decision_reject(
     """Reject a pending decision.
 
     Examples:
-        brandos decision reject abc123 --reason "Not aligned with brand voice"
+        agentcy-compass decision reject abc123 --reason "Not aligned with brand voice"
     """
     from brand_os.core.decision import DecisionStatus, get_decision, get_decision_log
 
@@ -311,8 +311,8 @@ def decision_pending(
         )
 
     console.print(table)
-    console.print("\nTo approve: brandos decision approve <id>")
-    console.print("To reject: brandos decision reject <id> --reason <reason>")
+    console.print("\nTo approve: agentcy-compass decision approve <id>")
+    console.print("To reject: agentcy-compass decision reject <id> --reason <reason>")
 
 
 # Policy management
@@ -342,8 +342,8 @@ def policy_test(
     """Test policy evaluation for a hypothetical decision.
 
     Examples:
-        brandos policy test acme
-        brandos policy test acme --type threat_response --confidence 0.9
+        agentcy-compass policy test acme
+        agentcy-compass policy test acme --type threat_response --confidence 0.9
     """
     from brand_os.core.decision import Decision, DecisionType
     from brand_os.core.policy import get_policy_engine

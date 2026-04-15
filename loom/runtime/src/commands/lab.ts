@@ -3,7 +3,6 @@ import { join, resolve } from 'path'
 import { loadBrandFoundation } from '../brands/load'
 import { ensureParentDir, resolveRuntimePaths } from '../core/paths'
 import { buildCardLabHtml, CARD_LAB_TYPES, type CardLabType } from '../lab/build'
-import { renderCardToFile, FIGURES, GRAVITIES, GROUNDS, IMAGE_SUBJECTS, PLATFORMS, type Figure, type Gravity } from '../render/card'
 
 interface LabInput {
   brand?: string
@@ -44,12 +43,6 @@ function usage(): string {
     'Usage:',
     '  lab card --brand <id> [--type quote] [--headline "..."] [--out path]',
     '  lab render --brand <id> --figure statement --gravity center --ground cream [--platform linkedin] [--image topography] [--headline "..."] [--body "..."] [--out path.png]',
-    '',
-    'Figures: ' + FIGURES.join(', '),
-    'Gravities: ' + GRAVITIES.join(', '),
-    'Grounds: ' + GROUNDS.map(g => g.id).join(', '),
-    'Platforms: ' + Object.keys(PLATFORMS).join(', '),
-    'Images: ' + IMAGE_SUBJECTS.join(', '),
   ].join('\n')
 }
 
@@ -136,23 +129,31 @@ export function runLabCommand(args: string[], root?: string): unknown {
   }
 }
 
-function runLabRender(args: string[], root?: string): unknown {
+async function runLabRender(args: string[], root?: string): Promise<unknown> {
   const parsed = parseArgs(args)
+  const { FIGURES, GRAVITIES, GROUNDS, PLATFORMS, renderCardToFile } = await import('../render/card')
 
-  const figure = (parsed.figure || 'statement') as Figure
-  const gravity = (parsed.gravity || 'center') as Gravity
+  const figure = parsed.figure || 'statement'
+  const gravity = parsed.gravity || 'center'
   const groundId = parsed.ground || 'cream'
   const platform = parsed.platform || 'linkedin'
   const image = parsed.image || 'topography'
 
-  if (!FIGURES.includes(figure)) throw new Error('Invalid figure: ' + figure + '. Options: ' + FIGURES.join(', '))
-  if (!GRAVITIES.includes(gravity)) throw new Error('Invalid gravity: ' + gravity + '. Options: ' + GRAVITIES.join(', '))
-  if (!GROUNDS.find(g => g.id === groundId)) throw new Error('Invalid ground: ' + groundId + '. Options: ' + GROUNDS.map(g => g.id).join(', '))
-  if (!PLATFORMS[platform]) throw new Error('Invalid platform: ' + platform + '. Options: ' + Object.keys(PLATFORMS).join(', '))
+  if (!FIGURES.includes(figure as (typeof FIGURES)[number])) {
+    throw new Error('Invalid figure: ' + figure + '. Options: ' + FIGURES.join(', '))
+  }
+  if (!GRAVITIES.includes(gravity as (typeof GRAVITIES)[number])) {
+    throw new Error('Invalid gravity: ' + gravity + '. Options: ' + GRAVITIES.join(', '))
+  }
+  if (!GROUNDS.find((ground) => ground.id === groundId)) {
+    throw new Error('Invalid ground: ' + groundId + '. Options: ' + GROUNDS.map((ground) => ground.id).join(', '))
+  }
+  if (!(platform in PLATFORMS)) {
+    throw new Error('Invalid platform: ' + platform + '. Options: ' + Object.keys(PLATFORMS).join(', '))
+  }
 
   const paths = resolveRuntimePaths(root)
 
-  // Load brand for defaults if provided
   const brand = parsed.brand ? loadBrandFoundation(parsed.brand, { root: paths.root }) : undefined
   const brandName = brand?.name || 'GiveCare'
   const logoPath = brand?.visual.logo
@@ -169,8 +170,8 @@ function runLabRender(args: string[], root?: string): unknown {
     : join(paths.stateDir, 'cards', `${figure}-${gravity}-${groundId}-${platform}.png`)
 
   const result = renderCardToFile({
-    figure,
-    gravity,
+    figure: figure as (typeof FIGURES)[number],
+    gravity: gravity as (typeof GRAVITIES)[number],
     ground: groundId,
     platform,
     eyebrow,

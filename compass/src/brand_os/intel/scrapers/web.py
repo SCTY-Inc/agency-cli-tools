@@ -30,7 +30,7 @@ def parse_html(html: str) -> Any:
     try:
         from bs4 import BeautifulSoup
     except ImportError:
-        raise ImportError("beautifulsoup4 required. Install with: pip install brand-os[intel]")
+        raise ImportError("beautifulsoup4 required. Install with: pip install agentcy-compass[intel]")
 
     return BeautifulSoup(html, "html.parser")
 

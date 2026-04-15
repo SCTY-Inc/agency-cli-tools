@@ -102,9 +102,9 @@ class AutonomousLoop:
         await loop.start()
 
     CLI:
-        brandos loop start
-        brandos loop status
-        brandos loop stop
+        agentcy-compass loop start
+        agentcy-compass loop status
+        agentcy-compass loop stop
     """
 
     def __init__(self, config: LoopConfig | None = None):

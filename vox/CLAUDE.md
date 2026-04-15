@@ -8,7 +8,9 @@ CLI tool **and Python library** for managing AI personas. Create, test, optimize
 - Python import path: `prsna` (unchanged until explicit refactor)
 - installed CLI: `agentcy-vox`
 - dispatcher alias: `agentcy vox ...`
-- writer contract: `voice_pack.v1.writer = { repo: "agentcy", module: "agentcy-vox" }`
+- writer contract: `voice_pack.v1.writer = { repo: "cli-prsna", module: "agentcy-vox" }`
+
+The package and CLI are Agentcy-branded, but canonical protocol lineage still keeps the historical `writer.repo` value for compatibility.
 
 **Core concept:** Personas are the new prompts. As AI gets more capable, consistent behavior becomes the bottleneck.
 

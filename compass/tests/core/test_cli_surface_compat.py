@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib.metadata
 import tomllib
 from pathlib import Path
 
@@ -9,17 +8,23 @@ from typer.testing import CliRunner
 from brand_os.cli import app
 
 
+ROOT = Path(__file__).resolve().parents[2]
+PYPROJECT = ROOT / "pyproject.toml"
 runner = CliRunner()
 
 
-def test_pyproject_keeps_current_brandos_entrypoint() -> None:
-    pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+def _pyproject() -> dict:
+    return tomllib.loads(PYPROJECT.read_text())
 
-    assert pyproject["project"]["scripts"] == {"brandos": "brand_os.cli:app"}
+
+def test_pyproject_keeps_current_agentcy_compass_entrypoint() -> None:
+    pyproject = _pyproject()
+
+    assert pyproject["project"]["scripts"] == {"agentcy-compass": "brand_os.cli:app"}
 
 
 def test_video_extra_keeps_solver_safe_replicate_floor() -> None:
-    pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+    pyproject = _pyproject()
 
     assert pyproject["project"]["optional-dependencies"]["video"] == [
         "replicate>=1.0",
@@ -27,15 +32,15 @@ def test_video_extra_keeps_solver_safe_replicate_floor() -> None:
     ]
 
 
-def test_cli_app_keeps_current_brandos_name() -> None:
-    assert app.info.name == "brandos"
+def test_cli_app_keeps_current_agentcy_compass_name() -> None:
+    assert app.info.name == "agentcy-compass"
 
 
 def test_cli_help_keeps_current_operator_surface() -> None:
     result = runner.invoke(app, ["--help"])
 
     assert result.exit_code == 0
-    assert "Usage: brandos" in result.stdout
+    assert "Usage: agentcy-compass" in result.stdout
     assert "CLI-first brand operations toolkit." in result.stdout
     for command in [
         "persona",
@@ -58,19 +63,19 @@ def test_cli_help_keeps_current_operator_surface() -> None:
         assert command in result.stdout
 
 
-def test_version_command_matches_installed_distribution_version() -> None:
+def test_version_command_matches_pyproject_version() -> None:
     result = runner.invoke(app, ["version"])
 
     assert result.exit_code == 0
-    expected = importlib.metadata.version("brand-os")
-    assert result.stdout.strip() == f"brandos v{expected}"
+    expected = _pyproject()["project"]["version"]
+    assert result.stdout.strip() == f"agentcy-compass v{expected}"
 
 
 def test_plan_help_keeps_current_subcommand_group() -> None:
     result = runner.invoke(app, ["plan", "--help"])
 
     assert result.exit_code == 0
-    assert "Usage: brandos plan" in result.stdout
+    assert "Usage: agentcy-compass plan" in result.stdout
     assert "Campaign planning commands." in result.stdout
     for command in ["research", "strategy", "creative", "activation", "run", "list", "resume"]:
         assert command in result.stdout

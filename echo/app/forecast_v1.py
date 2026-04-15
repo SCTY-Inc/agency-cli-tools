@@ -1,4 +1,4 @@
-"""Canonical completed forecast.v1 projection for cli-mirofish runs."""
+"""Canonical completed forecast.v1 projection for agentcy-echo runs."""
 
 from __future__ import annotations
 

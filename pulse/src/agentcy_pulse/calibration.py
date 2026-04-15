@@ -5,7 +5,9 @@ from pathlib import Path
 from typing import Any
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]  # agentcy_pulse/ → src/ → pulse/ → agentcy/
-CANONICAL_FORECAST_PATH = WORKSPACE_ROOT / "protocols" / "examples" / "forecast.v1.completed-rich.json"
+CANONICAL_FORECAST_PATH = (
+    WORKSPACE_ROOT / "protocols" / "examples" / "forecast.v1.completed-rich.json"
+)
 CANONICAL_PERFORMANCE_PATH = WORKSPACE_ROOT / "protocols" / "examples" / "performance.v1.rich.json"
 
 METRIC_ALIASES = {
@@ -92,7 +94,8 @@ def _validate_lineage_match(forecast: dict[str, Any], performance: dict[str, Any
     for field in ("brief_id", "brand_id"):
         if forecast.get(field) != performance.get(field):
             raise ValueError(
-                f"{field} mismatch between forecast ({forecast.get(field)!r}) and performance ({performance.get(field)!r})"
+                f"{field} mismatch between forecast ({forecast.get(field)!r}) "
+                f"and performance ({performance.get(field)!r})"
             )
 
 
@@ -168,7 +171,10 @@ def _classify_alignment(
 
 def _recommendation(verdict: str, matched_metrics: list[str], missed_metrics: list[str]) -> str:
     if verdict == "aligned":
-        return "Promote the forecast thesis into the next experiment and preserve the winning platform emphasis."
+        return (
+            "Promote the forecast thesis into the next experiment and preserve "
+            "the winning platform emphasis."
+        )
     if verdict == "mixed":
         matched = ", ".join(matched_metrics)
         missed = ", ".join(missed_metrics)
@@ -177,5 +183,11 @@ def _recommendation(verdict: str, matched_metrics: list[str], missed_metrics: li
             f"matched {matched}; missed {missed}."
         )
     if verdict == "misaligned":
-        return "Do not promote the forecast thesis unchanged; inspect the scenario assumptions before the next run."
-    return "Forecast text did not name both a platform and measurable metric, so use this report as a human review aid only."
+        return (
+            "Do not promote the forecast thesis unchanged; inspect the scenario "
+            "assumptions before the next run."
+        )
+    return (
+        "Forecast text did not name both a platform and measurable metric, so "
+        "use this report as a human review aid only."
+    )

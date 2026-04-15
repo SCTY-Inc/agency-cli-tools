@@ -137,7 +137,7 @@ class PipelineDisplay:
 
     def _render(self) -> Group:
         # header
-        title = Text("  mirofish run", style="bold cyan")
+        title = Text("  agentcy-echo run", style="bold cyan")
         if self.project_name:
             title.append(f" ─ {self.project_name}", style="dim")
 

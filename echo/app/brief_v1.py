@@ -1,4 +1,4 @@
-"""Thin canonical brief.v1 import adapter for cli-mirofish."""
+"""Thin canonical brief.v1 import adapter for agentcy-echo."""
 
 from __future__ import annotations
 

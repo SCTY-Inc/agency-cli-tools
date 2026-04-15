@@ -1,6 +1,5 @@
 """agentcy-protocols — shared schemas and adapters for the agentcy suite."""
 
-from importlib.resources import files
 from pathlib import Path
 
 # Root of the protocols package (for resolving schema paths)

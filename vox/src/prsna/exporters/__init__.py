@@ -201,6 +201,7 @@ _EXPORTERS: dict[str, Callable[[Persona], str]] = {
     "ollama": export_ollama,
     "hub": export_hub,
     "voice-pack": export_voice_pack,
+    "voice-pack.v1": export_voice_pack,
     "voice_pack": export_voice_pack,
     "voice_pack.v1": export_voice_pack,
 }

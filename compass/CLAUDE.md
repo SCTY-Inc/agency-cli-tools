@@ -10,7 +10,9 @@ Brand ops CLI with autonomous execution. Signals, competitive intel, content pro
 - Python import root: `brand_os` (unchanged until explicit refactor)
 - installed CLI: `agentcy-compass`
 - dispatcher alias: `agentcy compass ...`
-- writer contract: `brief.v1.writer = { repo: "agentcy", module: "agentcy-compass" }`
+- writer contract: `brief.v1.writer = { repo: "brand-os", module: "agentcy-compass" }`
+
+The package and CLI are Agentcy-branded, but canonical protocol lineage still keeps the historical `writer.repo` value for compatibility.
 
 **Architecture**: Human-over-the-loop - humans set policies and thresholds, system operates autonomously within those boundaries, exceptions escalated.
 

@@ -11,7 +11,9 @@ A CLI-first toolkit for managing brand identity, competitive intelligence, conte
 - Python import root: `brand_os` (unchanged until explicit refactor)
 - installed CLI: `agentcy-compass`
 - dispatcher alias: `agentcy compass ...`
-- writer contract: `brief.v1.writer = { repo: "agentcy", module: "agentcy-compass" }`
+- writer contract: `brief.v1.writer = { repo: "brand-os", module: "agentcy-compass" }`
+
+The package and CLI are Agentcy-branded, but canonical protocol lineage still keeps the historical `writer.repo` value for compatibility.
 
 agentcy-compass treats brands as code: version-controlled configurations, reproducible content pipelines, and automated quality gates. Instead of scattered tools and manual processes, you get a unified system where brand guidelines inform every piece of content.
 

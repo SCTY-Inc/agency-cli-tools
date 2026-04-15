@@ -31,6 +31,9 @@ uv sync
 
 # Full simulation runtime (recommended for actual runs, Python 3.11 only)
 uv sync --extra simulation
+
+# Readiness check
+agentcy-echo doctor --json
 ```
 
 Base package installs now intentionally keep the upstream OASIS/CAMEL simulation runtime in an optional extra so external wheel install, `agentcy echo --help`, and `import app` can be proven independently of the pinned upstream dependency boundary. The external simulation extra is now installable again by pinning `camel-oasis` to its exact upstream PyPI wheel, but that upstream package still only supports Python 3.11. For actual simulations, install the `simulation` extra from Python 3.11.

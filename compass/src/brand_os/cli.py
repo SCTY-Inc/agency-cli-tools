@@ -1,4 +1,4 @@
-"""Main CLI entry point for brandos."""
+"""Main CLI entry point for agentcy-compass."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,7 +10,7 @@ from brand_os.cli_utils import emit
 
 # Main app
 app = typer.Typer(
-    name="brandos",
+    name="agentcy-compass",
     help="CLI-first brand operations toolkit.",
     no_args_is_help=True,
 )
@@ -248,7 +248,9 @@ def config_profiles() -> None:
 @app.command("version")
 def version() -> None:
     """Show version information."""
-    console.print("brandos v0.1.0")
+    from brand_os import __version__
+
+    console.print(f"agentcy-compass v{__version__}")
 
 
 if __name__ == "__main__":

@@ -18,7 +18,10 @@ CANONICAL_SIDECAR_PATH = (
 
 def _load_family_adapter():
     module_path = ROOT / "protocols" / "adapters" / "run_result_to_performance_v1.py"
-    spec = importlib.util.spec_from_file_location("family_run_result_to_performance_v1", module_path)
+    spec = importlib.util.spec_from_file_location(
+        "family_run_result_to_performance_v1",
+        module_path,
+    )
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Unable to load family adapter from {module_path}")
     module = importlib.util.module_from_spec(spec)

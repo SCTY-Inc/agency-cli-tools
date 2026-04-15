@@ -10,7 +10,10 @@ const cliPath = path.resolve(binDir, '../src/cli.ts')
 const result = spawnSync(
   process.execPath,
   ['--import', 'tsx', cliPath, ...process.argv.slice(2)],
-  { stdio: 'inherit' },
+  {
+    cwd: path.resolve(binDir, '..'),
+    stdio: 'inherit',
+  },
 )
 
 if (result.error) {

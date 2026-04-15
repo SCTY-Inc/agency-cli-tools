@@ -39,7 +39,7 @@ def _optimize_with_dspy(
     try:
         import dspy
     except ImportError:
-        raise ImportError("dspy required for optimization. Install with: pip install brand-os[optimize]")
+        raise ImportError("dspy required for optimization. Install with: pip install agentcy-compass[optimize]")
 
     persona = load_persona(persona_name)
 
@@ -77,7 +77,7 @@ def _optimize_with_gepa(
     try:
         import gepa
     except ImportError:
-        raise ImportError("gepa required for GEPA optimization. Install with: pip install brand-os[optimize]")
+        raise ImportError("gepa required for GEPA optimization. Install with: pip install agentcy-compass[optimize]")
 
     persona = load_persona(persona_name)
 

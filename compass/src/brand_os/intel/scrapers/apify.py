@@ -10,7 +10,7 @@ def get_apify_client():
     try:
         from apify_client import ApifyClient
     except ImportError:
-        raise ImportError("apify-client required. Install with: pip install brand-os[intel]")
+        raise ImportError("apify-client required. Install with: pip install agentcy-compass[intel]")
 
     token = os.getenv("APIFY_TOKEN")
     if not token:

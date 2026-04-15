@@ -31,4 +31,4 @@ def test_simulation_runtime_reports_missing_optional_dependencies_on_python_311(
 
     assert message is not None
     assert "Optional simulation dependencies are not installed" in message
-    assert "mirofish-backend[simulation]" in message
+    assert "agentcy-echo[simulation]" in message

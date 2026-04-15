@@ -41,7 +41,7 @@ def _enrich_with_exa(persona: dict[str, Any]) -> dict[str, Any]:
     try:
         from exa_py import Exa
     except ImportError:
-        raise ImportError("exa-py required for Exa enrichment. Install with: pip install brand-os[persona]")
+        raise ImportError("exa-py required for Exa enrichment. Install with: pip install agentcy-compass[persona]")
 
     import os
     api_key = os.getenv("EXA_API_KEY")

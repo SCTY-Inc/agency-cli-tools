@@ -17,10 +17,10 @@ def _project_metadata() -> dict:
         return tomllib.load(fh)
 
 
-def test_distribution_name_stays_mirofish_backend():
+def test_distribution_name_stays_agentcy_echo():
     project = _project_metadata()["project"]
 
-    assert project["name"] == "mirofish-backend"
+    assert project["name"] == "agentcy-echo"
 
 
 def test_simulation_dependencies_are_optional_and_pinned():
@@ -38,10 +38,10 @@ def test_simulation_dependencies_are_optional_and_pinned():
     assert "camel-ai==0.2.78" in simulation_extra
 
 
-def test_console_script_stays_mirofish_to_app_cli_main():
+def test_console_script_stays_agentcy_echo_to_app_cli_main():
     project = _project_metadata()["project"]
 
-    assert project["scripts"] == {"mirofish": "app.cli:main"}
+    assert project["scripts"] == {"agentcy-echo": "app.cli:main"}
 
 
 def test_wheel_packages_stay_on_app_import_root():

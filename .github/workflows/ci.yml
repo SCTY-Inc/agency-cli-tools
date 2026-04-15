@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python-and-protocols:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v5
+      - name: Install Python workspace + dev tools
+        run: uv sync --group dev
+      - name: Python + protocol tests
+        run: make check-python
+      - name: Maintained-surface lint
+        run: make lint
+
+  loom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+      - name: Install loom runtime
+        run: cd loom/runtime && pnpm install --frozen-lockfile
+      - name: Loom tests + typecheck
+        run: make check-loom

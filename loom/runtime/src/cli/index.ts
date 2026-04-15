@@ -1,13 +1,3 @@
-import { runAutoCommand } from '../commands/auto'
-import { runBrandCommand } from '../commands/brand'
-import { runInspectCommand } from '../commands/inspect'
-import { runLabCommand } from '../commands/lab'
-import { runOpsCommand } from '../commands/ops'
-import { runPublishCommand } from '../commands/publish'
-import { runRetryCommand } from '../commands/retry'
-import { runReviewCommand } from '../commands/review'
-import { runWorkflowCommand } from '../commands/run'
-
 function print(data: unknown, json: boolean): void {
   if (json) {
     process.stdout.write(`${JSON.stringify(data, null, 2)}\n`)
@@ -28,10 +18,11 @@ function errorMessage(error: unknown): string {
 
 function helpText(): string {
   return [
-    'Loom Runtime CLI',
+    'agentcy-loom CLI',
     '',
     'Usage:',
-    '  loom <command> [options]',
+    '  agentcy-loom <command> [options]',
+    '  agentcy loom <command> [options]',
     '',
     'Commands:',
     '  auto --brand <id> [--workflow social.post] [--topic "..."] [--dry-run]',
@@ -51,17 +42,17 @@ function helpText(): string {
     '  respond.reply',
     '',
     'Examples:',
-    '  loom auto --brand givecare',
-    '  loom auto --brand scty --topic "AI adoption gap" --dry-run',
-    '  loom ops auth check --brand givecare',
-    '  loom run social.post --brand givecare --topic "caregiver benefits gap"',
-    '  loom run social.post --brand givecare --pillar care-economy --topic "$470B unpaid care labor"',
-    '  loom run social.post --brand givecare --format infographic --topic "caregiver workforce"',
-    '  loom run blog.post --brand givecare --pillar policy --topic "paid leave"',
-    '  loom run social.post --brand givecare --brief-file ../protocols/examples/brief.v1.rich.json',
-    '  loom lab card --brand givecare --type quote --headline "Care is infrastructure"',
-    '  loom lab render --brand givecare --figure statement --gravity high --ground cream --platform linkedin --headline "Care is infrastructure" --body "63M provide unpaid care." --image watershed',
-    '  loom publish run_123 --platforms twitter,linkedin --dry-run',
+    '  agentcy-loom auto --brand givecare',
+    '  agentcy-loom auto --brand scty --topic "AI adoption gap" --dry-run',
+    '  agentcy-loom ops auth check --brand givecare',
+    '  agentcy-loom run social.post --brand givecare --topic "caregiver benefits gap"',
+    '  agentcy-loom run social.post --brand givecare --pillar care-economy --topic "$470B unpaid care labor"',
+    '  agentcy-loom run social.post --brand givecare --format infographic --topic "caregiver workforce"',
+    '  agentcy-loom run blog.post --brand givecare --pillar policy --topic "paid leave"',
+    '  agentcy-loom run social.post --brand givecare --brief-file ../protocols/examples/brief.v1.rich.json',
+    '  agentcy-loom lab card --brand givecare --type quote --headline "Care is infrastructure"',
+    '  agentcy-loom lab render --brand givecare --figure statement --gravity high --ground cream --platform linkedin --headline "Care is infrastructure" --body "63M provide unpaid care." --image watershed',
+    '  agentcy-loom publish run_123 --platforms twitter,linkedin --dry-run',
   ].join('\n')
 }
 
@@ -82,33 +73,51 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<nu
 
     let data: unknown
     switch (command) {
-      case 'auto':
+      case 'auto': {
+        const { runAutoCommand } = await import('../commands/auto')
         data = await runAutoCommand(args)
         break
-      case 'brand':
+      }
+      case 'brand': {
+        const { runBrandCommand } = await import('../commands/brand')
         data = await runBrandCommand(args)
         break
-      case 'run':
+      }
+      case 'run': {
+        const { runWorkflowCommand } = await import('../commands/run')
         data = await runWorkflowCommand(args)
         break
-      case 'review':
+      }
+      case 'review': {
+        const { runReviewCommand } = await import('../commands/review')
         data = await runReviewCommand(args)
         break
-      case 'publish':
+      }
+      case 'publish': {
+        const { runPublishCommand } = await import('../commands/publish')
         data = await runPublishCommand(args)
         break
-      case 'inspect':
+      }
+      case 'inspect': {
+        const { runInspectCommand } = await import('../commands/inspect')
         data = await runInspectCommand(args)
         break
-      case 'retry':
+      }
+      case 'retry': {
+        const { runRetryCommand } = await import('../commands/retry')
         data = await runRetryCommand(args)
         break
-      case 'ops':
+      }
+      case 'ops': {
+        const { runOpsCommand } = await import('../commands/ops')
         data = await runOpsCommand(args)
         break
-      case 'lab':
+      }
+      case 'lab': {
+        const { runLabCommand } = await import('../commands/lab')
         data = await runLabCommand(args)
         break
+      }
       default:
         throw new Error(`Unknown command: ${command}`)
     }

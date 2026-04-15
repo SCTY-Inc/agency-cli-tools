@@ -11,8 +11,8 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[2]
 PROTOCOLS_DIR = ROOT / "protocols"
 EXAMPLES_DIR = PROTOCOLS_DIR / "examples"
-LOOM_RUNTIME_DIR = ROOT / "cli-phantom" / "runtime"
-TSX_CLI = LOOM_RUNTIME_DIR / "node_modules" / "tsx" / "dist" / "cli.mjs"
+LOOM_RUNTIME_DIR = ROOT / "loom" / "runtime"
+LOOM_BIN = LOOM_RUNTIME_DIR / "bin" / "loom.js"
 
 
 def _load_json(path: Path) -> dict:
@@ -21,7 +21,7 @@ def _load_json(path: Path) -> dict:
 
 def _run_cli(args: list[str], *, env: dict[str, str]) -> dict:
     result = subprocess.run(
-        ["node", str(TSX_CLI), "src/cli.ts", *args, "--json"],
+        ["node", str(LOOM_BIN), *args, "--json"],
         cwd=LOOM_RUNTIME_DIR,
         env=env,
         text=True,

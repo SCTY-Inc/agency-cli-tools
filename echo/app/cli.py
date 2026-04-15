@@ -543,7 +543,10 @@ def _handle_command(args: argparse.Namespace) -> Dict[str, Any]:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="mirofish", description="Minimal run-first CLI for MiroFish")
+    parser = argparse.ArgumentParser(
+        prog="agentcy-echo",
+        description="Minimal run-first CLI for agentcy-echo",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     doctor_parser = subparsers.add_parser("doctor", help="Check simulation runtime readiness")

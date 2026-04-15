@@ -18,7 +18,6 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -66,18 +65,37 @@ def _loom_bin() -> str | None:
     return None
 
 
-def _run_node(args: list[str]) -> None:
-    """Invoke loom via node."""
+def _loom_command(args: list[str]) -> list[str]:
     node = shutil.which("node")
     if not node:
         err.print("[red]error:[/red] 'node' not found — install Node.js")
         raise typer.Exit(2)
+
     bin_path = _loom_bin()
     if not bin_path:
         err.print("[red]error:[/red] loom not found — run: cd loom/runtime && pnpm install")
         raise typer.Exit(2)
-    result = subprocess.run([node, bin_path, *args])
+
+    if bin_path.endswith(".js"):
+        return [node, bin_path, *args]
+    return [bin_path, *args]
+
+
+def _run_node(args: list[str]) -> None:
+    """Invoke loom via its packaged command or local JS entry point."""
+    result = subprocess.run(_loom_command(args))
     raise typer.Exit(result.returncode)
+
+
+def _probe_member(command: list[str]) -> bool:
+    """Return True when a lightweight health probe exits successfully."""
+    result = subprocess.run(
+        command,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return result.returncode == 0
 
 
 # ---------------------------------------------------------------------------
@@ -87,27 +105,47 @@ def _run_node(args: list[str]) -> None:
 _PASS = {"allow_extra_args": True, "ignore_unknown_options": True}
 
 
-@app.command("vox", context_settings=_PASS, help="Persona management — create, test, optimize, export")
+@app.command(
+    "vox",
+    context_settings=_PASS,
+    help="Persona management — create, test, optimize, export",
+)
 def vox(ctx: typer.Context) -> None:
     _run("agentcy-vox", ctx.args)
 
 
-@app.command("compass", context_settings=_PASS, help="Brand ops — signals, planning, production, loop")
+@app.command(
+    "compass",
+    context_settings=_PASS,
+    help="Brand ops — signals, planning, production, loop",
+)
 def compass(ctx: typer.Context) -> None:
     _run("agentcy-compass", ctx.args)
 
 
-@app.command("echo", context_settings=_PASS, help="Swarm prediction — docs + requirement → forecast")
+@app.command(
+    "echo",
+    context_settings=_PASS,
+    help="Swarm prediction — docs + requirement → forecast",
+)
 def echo(ctx: typer.Context) -> None:
     _run("agentcy-echo", ctx.args)
 
 
-@app.command("loom", context_settings=_PASS, help="Comms runtime — brief → draft → render → publish")
+@app.command(
+    "loom",
+    context_settings=_PASS,
+    help="Comms runtime — brief → draft → render → publish",
+)
 def loom(ctx: typer.Context) -> None:
     _run_node(ctx.args)
 
 
-@app.command("pulse", context_settings=_PASS, help="Measurement + calibration — run_result → performance")
+@app.command(
+    "pulse",
+    context_settings=_PASS,
+    help="Measurement + calibration — run_result → performance",
+)
 def pulse(ctx: typer.Context) -> None:
     _run("agentcy-pulse", ctx.args)
 
@@ -121,25 +159,40 @@ def doctor(
     json_out: Annotated[bool, typer.Option("--json", help="Machine-readable output")] = False,
 ) -> None:
     """Check that all member CLIs are installed and healthy."""
+    node = shutil.which("node")
     members = [
-        ("vox",     "agentcy-vox",     "python"),
-        ("compass", "agentcy-compass", "python"),
-        ("echo",    "agentcy-echo",    "python"),
-        ("loom",    "agentcy-loom",    "node"),
-        ("pulse",   "agentcy-pulse",   "python"),
+        ("vox", "agentcy-vox", "python", ["agentcy-vox", "--version"]),
+        ("compass", "agentcy-compass", "python", ["agentcy-compass", "--help"]),
+        ("echo", "agentcy-echo", "python", ["agentcy-echo", "--help"]),
+        ("loom", "agentcy-loom", "node", None),
+        ("pulse", "agentcy-pulse", "python", ["agentcy-pulse", "doctor"]),
     ]
 
     results: dict[str, dict] = {}
     all_ok = True
 
-    for name, bin_name, runtime in members:
+    for name, bin_name, runtime, probe_command in members:
         if runtime == "node":
-            found = _loom_bin() is not None
+            resolved = _loom_bin()
+            found = resolved is not None and node is not None
+            reachable = found and _probe_member(_loom_command(["help", "--json"]))
         else:
-            found = bool(shutil.which(bin_name))
-        if not found:
+            resolved = shutil.which(bin_name)
+            found = resolved is not None
+            reachable = (
+                found
+                and probe_command is not None
+                and _probe_member([resolved, *probe_command[1:]])
+            )
+
+        if not found or not reachable:
             all_ok = False
-        results[name] = {"bin": bin_name, "found": found, "runtime": runtime}
+        results[name] = {
+            "bin": bin_name,
+            "found": found,
+            "reachable": reachable,
+            "runtime": runtime,
+        }
 
     if json_out:
         print(json.dumps({
@@ -154,7 +207,12 @@ def doctor(
     table.add_column("bin")
     table.add_column("status")
     for name, info in results.items():
-        status = "[green]ok[/green]" if info["found"] else "[red]missing[/red]"
+        if not info["found"]:
+            status = "[red]missing[/red]"
+        elif info["reachable"]:
+            status = "[green]ok[/green]"
+        else:
+            status = "[yellow]broken[/yellow]"
         table.add_row(name, info["bin"], status)
     console.print(table)
     raise typer.Exit(0 if all_ok else 1)

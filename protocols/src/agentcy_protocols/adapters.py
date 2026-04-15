@@ -1,13 +1,26 @@
 """Thin re-export of the canonical adapter so workspace members can import it."""
 
-import sys
+from __future__ import annotations
+
+import importlib.util
 from pathlib import Path
 
-# Add the protocols/adapters directory to path so we can import the canonical adapter
-_adapters_dir = Path(__file__).parent.parent.parent / "adapters"
-if str(_adapters_dir) not in sys.path:
-    sys.path.insert(0, str(_adapters_dir))
 
-from run_result_to_performance_v1 import adapt_canonical_run_result_to_performance as adapt_run_result_to_performance  # noqa: E402
+def _load_adapter():
+    adapter_path = (
+        Path(__file__).resolve().parents[3] / "adapters" / "run_result_to_performance_v1.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "agentcy_protocols_run_result_to_performance",
+        adapter_path,
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load canonical adapter from {adapter_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+adapt_run_result_to_performance = _load_adapter().adapt_canonical_run_result_to_performance
 
 __all__ = ["adapt_run_result_to_performance"]

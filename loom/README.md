@@ -10,7 +10,9 @@ Canonical surfaces (monorepo):
 - npm package: `agentcy-loom`
 - installed CLI: `agentcy-loom`
 - dispatcher alias: `agentcy loom ...`
-- canonical artifact writer: `run_result.v1.writer = { repo: "agentcy", module: "agentcy-loom" }`
+- canonical artifact writer: `run_result.v1.writer = { repo: "cli-phantom", module: "agentcy-loom" }`
+
+The runtime is Agentcy-branded at the package/bin layer, but canonical protocol lineage still keeps the historical `writer.repo` value for compatibility.
 
 ## Scope
 
@@ -73,5 +75,6 @@ agentcy-loom help --json
 
 ## Notes
 
-The previous implementation has been archived under `archive/legacy-20260325/`.
-Legacy outputs and unused package leftovers were moved under `archive/legacy-20260325/legacy-artifacts/`.
+- The previous implementation has been archived under `archive/legacy-20260325/`.
+- Legacy outputs and unused package leftovers were moved under `archive/legacy-20260325/legacy-artifacts/`.
+- CLI help and the active social workflow now start even when the optional native `canvas` binding is missing; social rendering falls back to SVG/resvg in that case.

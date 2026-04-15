@@ -16,12 +16,13 @@ Agent CLI suite. Six tools that chain sequentially through a shared protocol lay
 ## Pipeline
 
 ```
-agentcy-vox export <persona> --to voice-pack.v1 --json  → voice_pack.v1
-agentcy-compass plan --brand <id> --json                → brief.v1
-agentcy-echo run --files docs/ --brief brief.v1 --json  → forecast.v1
-agentcy-loom run social.post --brand <id> --json        → run_result.v1
-agentcy-pulse adapt --run-result ... --sidecar ... --json → performance.v1
-agentcy-pulse calibrate --forecast ... --performance ... → calibration
+agentcy-vox --json export <persona> --to voice-pack.v1                                → voice_pack.v1
+agentcy-compass plan run "<brief>" --brand <id> --voice-pack-input <voice_pack> \
+  --brief-v1-output <brief.v1.json> -f json                                           → brief.v1
+agentcy-echo run --files docs/ --brief brief.v1.json --json                           → forecast.v1
+agentcy-loom run social.post --brand <id> --brief-file brief.v1.json --json           → run_result.v1
+agentcy-pulse adapt --run-result ... --sidecar ... --output performance.v1.json --json → performance.v1
+agentcy-pulse calibrate --forecast ... --performance ... --json                        → calibration
 ```
 
 Each tool reads a protocol artifact from the prior step and emits one for the next.
@@ -29,14 +30,20 @@ Each tool reads a protocol artifact from the prior step and emits one for the ne
 ## Setup
 
 ```bash
-# Python tools
-uv sync --all-extras
+# Python tools + repo-local dev commands
+uv sync --group dev
+
+# Optional extras
+uv sync --all-extras --group dev
 
 # TypeScript (loom)
 cd loom/runtime && pnpm install
 
-# Full pipeline (dry-run)
+# Full live pipeline (echo simulation requires Python 3.11 + simulation extra)
 make pipeline brand=givecare persona=my-persona files=docs/ req="predict adoption" sidecar=sidecar.json
+
+# Fixture-backed downstream smoke path
+make pipeline-fixtures sidecar=protocols/tests/fixtures/run_result_to_performance_v1/sidecar.rich.json
 ```
 
 ## Toolchain
@@ -56,10 +63,15 @@ All inter-tool contracts live in `protocols/`:
 
 ## Standard interface
 
-Every tool must support:
-- `--json` → `{"status": "ok"|"error", "command": str, "data": {...}}`
-- `agentcy-* doctor --json` → readiness check
+Current operator contract:
+- `agentcy doctor --json` returns the normalized suite-wide readiness envelope
+- `agentcy-pulse --json` now emits `{"status": "ok"|"error", "command": str, "data": {...}}`
+- `agentcy-vox` uses a global `--json` flag
+- `agentcy-echo` and `agentcy-loom` expose subcommand-level `--json`
+- `agentcy-compass` currently prefers `-f json` on data-producing subcommands
 - Exit: `0` success, `1` user error, `2` runtime error
+
+Do not assume every member subcommand has the same JSON envelope yet; use the documented command form for each tool.
 
 ## Guardrails
 
@@ -69,6 +81,15 @@ Every tool must support:
 - Never delete `echo/uploads/runs/` — artifacts are immutable products
 - compass persona subcommands are deprecated — use `agentcy-vox` instead
 - pulse absorbs lab: `agentcy-pulse calibrate` replaces `agentcy-lab calibration`
+
+## Writer contract split
+
+Canonical artifact lineage intentionally keeps legacy `writer.repo` values while package/bin names use `agentcy-*`:
+- `voice_pack.v1` → `{ repo: "cli-prsna", module: "agentcy-vox" }`
+- `brief.v1` → `{ repo: "brand-os", module: "agentcy-compass" }`
+- `forecast.v1` → `{ repo: "cli-mirofish", module: "agentcy-echo" }`
+- `run_result.v1` → `{ repo: "cli-phantom", module: "agentcy-loom" }`
+- `performance.v1` → `{ repo: "cli-metrics", module: "agentcy-pulse" }`
 
 ## Module names (Python imports unchanged)
 

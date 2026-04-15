@@ -29,15 +29,17 @@ logger = get_logger('mirofish.oasis_llm')
 
 DEFAULT_CLI_SEMAPHORE = 3
 SUPPORTED_SIMULATION_PYTHON = (3, 11)
+_MISSING = object()
 
 
 def get_simulation_runtime_preflight(
     version_info: Any | None = None,
-    camel_import_error: ImportError | None = None,
+    camel_import_error: ImportError | None | object = _MISSING,
 ) -> Dict[str, Any]:
     """Return machine-readable simulation runtime readiness details."""
     version_info = version_info or sys.version_info
-    camel_import_error = _CAMEL_IMPORT_ERROR if camel_import_error is None else camel_import_error
+    if camel_import_error is _MISSING:
+        camel_import_error = _CAMEL_IMPORT_ERROR
 
     supported_version = f"{SUPPORTED_SIMULATION_PYTHON[0]}.{SUPPORTED_SIMULATION_PYTHON[1]}"
     current_version = f"{version_info.major}.{version_info.minor}.{version_info.micro}"
@@ -63,11 +65,12 @@ def get_simulation_runtime_preflight(
 
 def get_simulation_runtime_error(
     version_info: Any | None = None,
-    camel_import_error: ImportError | None = None,
+    camel_import_error: ImportError | None | object = _MISSING,
 ) -> str | None:
     """Return a human-readable simulation runtime preflight error, if any."""
     version_info = version_info or sys.version_info
-    camel_import_error = _CAMEL_IMPORT_ERROR if camel_import_error is None else camel_import_error
+    if camel_import_error is _MISSING:
+        camel_import_error = _CAMEL_IMPORT_ERROR
 
     current_version = f"{version_info.major}.{version_info.minor}"
     supported_version = f"{SUPPORTED_SIMULATION_PYTHON[0]}.{SUPPORTED_SIMULATION_PYTHON[1]}"
@@ -77,13 +80,13 @@ def get_simulation_runtime_error(
             f"Simulation runtime is only supported on Python {supported_version} for this fork; "
             f"current interpreter is Python {current_version}. "
             "Create or switch to a Python 3.11 environment, then install the pinned simulation extra with "
-            "`pip install 'mirofish-backend[simulation]'` or `uv sync --extra simulation`."
+            "`pip install 'agentcy-echo[simulation]'` or `uv sync --extra simulation`."
         )
 
     if camel_import_error is not None:
         return (
             "Optional simulation dependencies are not installed. "
-            "Install the pinned simulation extra for this fork with `pip install 'mirofish-backend[simulation]'` "
+            "Install the pinned simulation extra for this fork with `pip install 'agentcy-echo[simulation]'` "
             "or `uv sync --extra simulation`. "
             f"Simulation currently requires Python {supported_version} because upstream camel-oasis does not support 3.12."
         )

@@ -42,3 +42,21 @@ def test_cli_prints_json_when_output_is_omitted(monkeypatch, capsys) -> None:
 
     assert exit_code == 0
     assert json.loads(capsys.readouterr().out) == expected
+
+
+def test_cli_emits_standard_json_envelope_when_requested(monkeypatch, capsys) -> None:
+    expected = {"artifact_type": "performance.v1", "performance_id": "json.performance"}
+
+    monkeypatch.setattr(
+        "agentcy_pulse.cli.adapt_canonical_run_result_to_performance",
+        lambda sidecar_path, *, run_result_path: expected,
+    )
+
+    exit_code = main(["--sidecar", "sidecar.json", "--json"])
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "status": "ok",
+        "command": "adapt",
+        "data": expected,
+    }

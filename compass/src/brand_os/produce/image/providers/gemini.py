@@ -26,7 +26,7 @@ def generate_with_gemini(
     try:
         from google import genai
     except ImportError:
-        raise ImportError("google-genai required. Install with: pip install brand-os[image]")
+        raise ImportError("google-genai required. Install with: pip install agentcy-compass[image]")
 
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:

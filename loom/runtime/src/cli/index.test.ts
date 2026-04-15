@@ -111,6 +111,16 @@ afterEach(() => {
 })
 
 describe.sequential('runCli', () => {
+  test('returns help without loading the native render stack', async () => {
+    const { result, stdout } = await captureStdout(() => runCli(['help', '--json']))
+
+    expect(result).toBe(0)
+    expect(JSON.parse(stdout)).toMatchObject({
+      status: 'ok',
+      command: 'help',
+    })
+  })
+
   test('returns a JSON error envelope for invalid workflows', async () => {
     const root = createWorkspace()
     process.env.LOOM_ROOT = root

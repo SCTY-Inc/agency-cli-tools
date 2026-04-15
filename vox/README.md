@@ -11,7 +11,9 @@ Manage, compose, test, and evolve AI personas.
 - Python import path: `prsna` (unchanged until explicit refactor)
 - installed CLI: `agentcy-vox`
 - dispatcher alias: `agentcy vox ...`
-- writer contract: `voice_pack.v1.writer = { repo: "agentcy", module: "agentcy-vox" }`
+- writer contract: `voice_pack.v1.writer = { repo: "cli-prsna", module: "agentcy-vox" }`
+
+The package and CLI are Agentcy-branded, but canonical protocol lineage still keeps the historical `writer.repo` value for compatibility.
 
 ## Install
 
@@ -127,7 +129,7 @@ agentcy-vox ask scientist "question"    # One-shot
 echo "question" | agentcy-vox ask scientist -  # Pipe from stdin
 
 # EXPORT
-agentcy-vox export scientist --to voice-pack  # Canonical Agentcy voice_pack.v1 JSON
+agentcy-vox export scientist --to voice-pack.v1  # Canonical Agentcy voice_pack.v1 JSON
 agentcy-vox export scientist --to eliza       # PersonaKit/Eliza
 agentcy-vox export scientist --to v2          # Character Card V2
 agentcy-vox export scientist --to ollama      # Ollama Modelfile

@@ -10,7 +10,6 @@ import { generateSocialDraftSet } from '../generate/copy'
 import { generateExploreGrid } from '../generate/explore'
 import { generateSourceImage } from '../generate/image'
 import { generateText } from '../render/gemini'
-import { renderSocialAssets } from '../render/social'
 import type { RuntimePaths } from '../core/paths'
 
 export interface WorkflowContext {
@@ -301,6 +300,7 @@ async function buildAssetArtifacts(context: WorkflowContext): Promise<StepOutput
   const cta = typeof mainVariant?.cta === 'string' ? mainVariant.cta : undefined
   const sourceImagePath = typeof sourceImage?.data.imagePath === 'string' ? sourceImage.data.imagePath : ''
 
+  const { renderSocialAssets } = await import('../render/social')
   const platformAssets = await renderSocialAssets({
     brand: context.brand,
     paths: context.paths,
