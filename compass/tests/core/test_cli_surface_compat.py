@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 
@@ -15,6 +16,11 @@ runner = CliRunner()
 
 def _pyproject() -> dict:
     return tomllib.loads(PYPROJECT.read_text())
+
+
+def _plain(text: str) -> str:
+    no_ansi = re.sub(r"\x1b\[[0-9;]*m", "", text)
+    return re.sub(r"\s+", " ", no_ansi).strip()
 
 
 def test_pyproject_keeps_current_agentcy_compass_entrypoint() -> None:
@@ -38,10 +44,11 @@ def test_cli_app_keeps_current_agentcy_compass_name() -> None:
 
 def test_cli_help_keeps_current_operator_surface() -> None:
     result = runner.invoke(app, ["--help"])
+    plain = _plain(result.stdout)
 
     assert result.exit_code == 0
-    assert "Usage: agentcy-compass" in result.stdout
-    assert "CLI-first brand operations toolkit." in result.stdout
+    assert "Usage: agentcy-compass" in plain
+    assert "CLI-first brand operations toolkit." in plain
     for command in [
         "persona",
         "intel",
@@ -60,7 +67,7 @@ def test_cli_help_keeps_current_operator_surface() -> None:
         "config",
         "version",
     ]:
-        assert command in result.stdout
+        assert command in plain
 
 
 def test_version_command_matches_pyproject_version() -> None:
@@ -73,9 +80,10 @@ def test_version_command_matches_pyproject_version() -> None:
 
 def test_plan_help_keeps_current_subcommand_group() -> None:
     result = runner.invoke(app, ["plan", "--help"])
+    plain = _plain(result.stdout)
 
     assert result.exit_code == 0
-    assert "Usage: agentcy-compass plan" in result.stdout
-    assert "Campaign planning commands." in result.stdout
+    assert "Usage: agentcy-compass plan" in plain
+    assert "Campaign planning commands." in plain
     for command in ["research", "strategy", "creative", "activation", "run", "list", "resume"]:
-        assert command in result.stdout
+        assert command in plain
