@@ -20,6 +20,7 @@ A swarm intelligence prediction engine. Feed it documents describing any scenari
 
 - Python 3.11-3.12 for the base CLI package
 - Python 3.11 for the optional simulation runtime (upstream `camel-oasis` does not support 3.12)
+- `--smoke` works on the base CLI package and skips the Python-3.11-only OASIS runtime
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 
 ### Setup
@@ -46,14 +47,24 @@ agentcy echo run \
   --requirement "Predict public reaction over 30 days" \
   --json
 
+# Faster artifact proof path: skip the live OASIS runtime, keep the rest of the CLI flow
+agentcy echo run \
+  --files docs/policy.pdf notes/context.md \
+  --requirement "Predict public reaction over 30 days" \
+  --smoke \
+  --json
+
 # List prior runs
 agentcy echo runs list --json
 
 # Check run status
 agentcy echo runs status <run_id> --json
 
-# Export artifacts (includes canonical forecast_v1 for completed brief-based runs)
+# Export artifacts (includes repo-local run_eval + canonical forecast_v1 for completed runs)
 agentcy echo runs export <run_id> --json
+
+# Export just the repo-local run-shape eval sidecar
+agentcy echo runs export <run_id> --artifact run_eval --json
 
 # Export just the canonical forecast file
 agentcy echo runs export <run_id> --artifact forecast_v1 --json
@@ -67,6 +78,7 @@ agentcy echo run
   --requirement TEXT          What to predict
   --platform parallel|twitter|reddit   Simulation platform (default: parallel)
   --max-rounds N              Max simulation rounds (default: 10)
+  --smoke                     Skip the live OASIS subprocess and emit deterministic smoke-mode artifacts
   --output-dir PATH           Run output directory
   --json                      Machine-readable JSON output (stdout)
 ```
@@ -86,7 +98,7 @@ uploads/runs/<run_id>/
     requirement.txt
     source_files/
     ontology.json
-    simulation_config.json
+    simulation_config.json   # includes taxonomy-driven scenario buckets under event_config
   graph/
     graph.json
     graph_summary.json
@@ -99,8 +111,10 @@ uploads/runs/<run_id>/
     meta.json
     summary.json
     report.md
+  eval/
+    run_eval.v1.json       # repo-local completed-run evaluation sidecar
   forecast/
-    forecast.v1.json        # emitted only for completed runs with persisted canonical brief lineage
+    forecast.v1.json       # emitted only for completed runs with persisted canonical brief lineage
   visuals/
     swarm-overview.svg
     cluster-map.svg
@@ -108,6 +122,7 @@ uploads/runs/<run_id>/
     platform-split.svg
   logs/
     run.log
+    llm_telemetry.jsonl      # per-call Claude/Codex telemetry when CLI runs set AGENTCY_LLM_TELEMETRY_FILE
 ```
 
 ## LLM providers
@@ -119,6 +134,12 @@ Set `LLM_PROVIDER` in `.env`:
 | `claude-cli` | `LLM_PROVIDER=claude-cli` (default) | Uses your Claude Code subscription |
 | `codex-cli` | `LLM_PROVIDER=codex-cli` | Uses your Codex CLI subscription |
 
+Optional Claude model override:
+
+```bash
+LLM_PROVIDER=claude-cli CLAUDE_MODEL=haiku agentcy-echo run --files docs/memo.md --requirement "Predict reaction" --smoke --json
+```
+
 ## Architecture
 
 ```
@@ -127,18 +148,24 @@ app/
     cli_display.py     Rich visual pipeline display
     config.py          Environment + validation
     run_artifacts.py   Immutable run storage
+    run_eval.py        Repo-local completed-run evaluation sidecar
+    smoke_mode.py      Deterministic smoke-mode timeline/report builder
     visual_snapshots.py SVG snapshot generation
     core/              Workbench session, session registry, resource loader, tasks
     resources/         Adapters for projects, documents, graph, simulations, reports
     tools/             Composable pipeline (ingest, build, prepare, run, report)
     services/
-      graph_storage.py     JSON graph backend
-      graph_db.py          Graph query facade
-      entity_extractor.py  LLM-based extraction
-      graph_builder.py     Ontology -> graph pipeline
-      simulation_runner.py OASIS simulation (subprocess)
-      report_agent.py      Single-pass report generation
-      graph_tools.py       Search, interview, analysis
+      graph_storage.py      JSON graph backend
+      graph_db.py           Graph query facade
+      entity_extractor.py   LLM-based extraction
+      graph_builder.py      Ontology -> graph pipeline
+      simulation_runner.py  OASIS simulation orchestration + monitoring
+      report_agent.py       Fast report path + legacy ReACT path
+      graph_tools.py        Public GraphToolsService assembly point
+      graph_models.py       Search/interview result models
+      graph_retrieval.py    Base graph CRUD + summaries
+      graph_search_tools.py Higher-level search helpers
+      graph_interview.py    Agent interview helpers
     utils/
       llm_client.py        CLI-only LLM client (claude-cli, codex-cli)
   scripts/             OASIS simulation runner scripts
@@ -148,9 +175,15 @@ app/
 
 `agentcy echo runs export <run_id> --json` is the stable export seam for downstream tooling.
 
-For completed runs that were created from canonical `brief.v1` input, the returned artifact map includes:
+For completed runs, the returned artifact map includes:
+
+- `run_eval` → absolute path to `eval/run_eval.v1.json`
+
+For completed runs that were created from canonical `brief.v1` input, the returned artifact map also includes:
 
 - `forecast_v1` → absolute path to `forecast/forecast.v1.json`
+
+The repo-local `run_eval` file is intentionally internal: it summarizes run shape, top-agent concentration, report/snapshot availability, and synthetic-signal metrics such as coverage, local diversity, complexity, and heuristic critic rejection rate without widening canonical protocol contracts.
 
 The exported `forecast.v1` file is intentionally narrow in loop 3:
 

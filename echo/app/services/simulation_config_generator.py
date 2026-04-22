@@ -14,6 +14,7 @@ overly long content in a single pass:
 
 import json
 import math
+import re
 from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
@@ -124,6 +125,9 @@ class EventConfig:
 
     # Narrative direction
     narrative_direction: str = ""
+
+    # Taxonomy-driven scenario buckets used to seed simulation coverage
+    scenario_buckets: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -290,8 +294,13 @@ class SimulationConfigGenerator:
         # ========== Step 2: Generate event configuration ==========
         report_progress(2, "Generating event configuration and trending topics...")
         event_config_result = self._generate_event_config(context, simulation_requirement, entities)
-        event_config = self._parse_event_config(event_config_result)
+        event_config = self._parse_event_config(
+            event_config_result,
+            simulation_requirement=simulation_requirement,
+            entities=entities,
+        )
         reasoning_parts.append(f"Event config: {event_config_result.get('reasoning', 'Success')}")
+        reasoning_parts.append(f"Scenario buckets: {len(event_config.scenario_buckets)}")
 
         # ========== Steps 3-N: Generate Agent configurations in batches ==========
         all_agent_configs = []
@@ -621,6 +630,217 @@ Field descriptions:
             peak_activity_multiplier=1.5
         )
 
+    def _dedupe_strings(self, values: List[Any], limit: Optional[int] = None) -> List[str]:
+        seen = set()
+        deduped: List[str] = []
+        for value in values:
+            if isinstance(value, str):
+                normalized = " ".join(value.split())
+            else:
+                normalized = " ".join(str(value or "").split())
+            if not normalized:
+                continue
+            key = normalized.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(normalized)
+            if limit is not None and len(deduped) >= limit:
+                break
+        return deduped
+
+    def _entity_types_for_taxonomy(self, entities: List[EntityNode]) -> List[str]:
+        return self._dedupe_strings(
+            [entity.get_entity_type() or "Unknown" for entity in entities],
+            limit=6,
+        )
+
+    def _slug(self, value: str) -> str:
+        slug = re.sub(r"[^a-z0-9]+", "-", value.strip().lower()).strip("-")
+        return slug or "scenario"
+
+    def _extract_requirement_topics(self, simulation_requirement: str) -> List[str]:
+        stopwords = {
+            "about",
+            "across",
+            "after",
+            "before",
+            "during",
+            "first",
+            "from",
+            "into",
+            "over",
+            "predict",
+            "public",
+            "reaction",
+            "responses",
+            "social",
+            "their",
+            "these",
+            "those",
+            "through",
+            "under",
+            "week",
+            "weeks",
+            "with",
+        }
+        words = re.findall(r"[A-Za-z][A-Za-z-]+", simulation_requirement.lower())
+        return self._dedupe_strings(
+            [word.replace("-", " ") for word in words if len(word) >= 4 and word not in stopwords],
+            limit=4,
+        )
+
+    def _normalize_scenario_buckets(
+        self,
+        result: Dict[str, Any],
+        simulation_requirement: str,
+        entities: List[EntityNode],
+    ) -> List[Dict[str, Any]]:
+        available_types = self._entity_types_for_taxonomy(entities)
+        fallback_topics = self._dedupe_strings(
+            list(result.get("hot_topics", []) or []) + self._extract_requirement_topics(simulation_requirement),
+            limit=6,
+        )
+        raw_buckets = list(result.get("scenario_buckets", []) or [])
+        raw_posts = list(result.get("initial_posts", []) or [])
+
+        if not raw_buckets and raw_posts:
+            raw_buckets = [
+                {
+                    "label": f"Scenario {index + 1}",
+                    "poster_type": post.get("poster_type"),
+                    "seed_post": post.get("content"),
+                    "topics": [fallback_topics[index]] if index < len(fallback_topics) else [],
+                    "trigger_round": index + 1,
+                }
+                for index, post in enumerate(raw_posts[:4])
+            ]
+
+        if not raw_buckets:
+            if not fallback_topics:
+                fallback_topics = [simulation_requirement.strip() or "core reaction"]
+            raw_buckets = [
+                {
+                    "label": topic.title(),
+                    "focus": f"Discussion centers on {topic}.",
+                    "poster_type": (
+                        available_types[index % len(available_types)] if available_types else "Unknown"
+                    ),
+                    "seed_post": f"{topic.title()} is becoming a focal point in this discussion.",
+                    "follow_up": f"People ask for evidence, trade-offs, and who benefits from {topic}.",
+                    "trigger_round": index + 1,
+                    "topics": [topic],
+                }
+                for index, topic in enumerate(fallback_topics[:4])
+            ]
+
+        buckets: List[Dict[str, Any]] = []
+        for index, raw_bucket in enumerate(raw_buckets[:6]):
+            bucket = dict(raw_bucket)
+            label = str(
+                bucket.get("label")
+                or bucket.get("name")
+                or bucket.get("topic")
+                or bucket.get("focus")
+                or f"Scenario {index + 1}"
+            ).strip()
+            topics = self._dedupe_strings(
+                list(bucket.get("topics", []) or []) + ([bucket.get("topic")] if bucket.get("topic") else []),
+                limit=4,
+            )
+            if not topics and index < len(fallback_topics):
+                topics = [fallback_topics[index]]
+
+            poster_type = str(bucket.get("poster_type") or "").strip()
+            if not poster_type:
+                poster_type = available_types[index % len(available_types)] if available_types else "Unknown"
+
+            seed_post = str(bucket.get("seed_post") or bucket.get("content") or "").strip()
+            if not seed_post:
+                topic_fragment = topics[0] if topics else label.lower()
+                seed_post = f"{topic_fragment.title()} is becoming a focal point in this discussion."
+
+            follow_up = str(bucket.get("follow_up") or bucket.get("scheduled_event") or "").strip()
+            if not follow_up and topics:
+                follow_up = f"People ask for evidence, trade-offs, and who benefits from {topics[0]}."
+
+            try:
+                trigger_round = max(1, int(bucket.get("trigger_round", index + 1)))
+            except (TypeError, ValueError):
+                trigger_round = index + 1
+
+            buckets.append(
+                {
+                    "bucket_id": str(bucket.get("bucket_id") or self._slug(label)),
+                    "label": label,
+                    "focus": str(bucket.get("focus") or bucket.get("description") or label).strip(),
+                    "poster_type": poster_type,
+                    "seed_post": seed_post,
+                    "follow_up": follow_up,
+                    "trigger_round": trigger_round,
+                    "topics": topics,
+                }
+            )
+
+        return buckets
+
+    def _build_initial_posts_from_buckets(
+        self,
+        raw_posts: List[Dict[str, Any]],
+        scenario_buckets: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        if raw_posts:
+            normalized_posts: List[Dict[str, Any]] = []
+            for index, post in enumerate(raw_posts):
+                bucket = scenario_buckets[min(index, len(scenario_buckets) - 1)] if scenario_buckets else None
+                normalized = dict(post)
+                normalized["content"] = str(post.get("content") or (bucket.get("seed_post") if bucket else "")).strip()
+                normalized["poster_type"] = str(post.get("poster_type") or (bucket.get("poster_type") if bucket else "Unknown")).strip() or "Unknown"
+                if bucket is not None:
+                    normalized.setdefault("scenario_bucket_id", bucket["bucket_id"])
+                    normalized.setdefault("scenario_bucket_label", bucket["label"])
+                normalized_posts.append(normalized)
+            return normalized_posts
+
+        return [
+            {
+                "content": bucket["seed_post"],
+                "poster_type": bucket["poster_type"],
+                "scenario_bucket_id": bucket["bucket_id"],
+                "scenario_bucket_label": bucket["label"],
+            }
+            for bucket in scenario_buckets
+            if bucket.get("seed_post")
+        ]
+
+    def _build_scheduled_events_from_buckets(
+        self,
+        raw_events: List[Dict[str, Any]],
+        scenario_buckets: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        if raw_events:
+            normalized_events: List[Dict[str, Any]] = []
+            for index, event in enumerate(raw_events):
+                bucket = scenario_buckets[min(index, len(scenario_buckets) - 1)] if scenario_buckets else None
+                normalized = dict(event)
+                if bucket is not None:
+                    normalized.setdefault("scenario_bucket_id", bucket["bucket_id"])
+                    normalized.setdefault("scenario_bucket_label", bucket["label"])
+                normalized_events.append(normalized)
+            return normalized_events
+
+        return [
+            {
+                "trigger_round": bucket["trigger_round"],
+                "content": bucket["follow_up"],
+                "poster_type": bucket["poster_type"],
+                "scenario_bucket_id": bucket["bucket_id"],
+                "scenario_bucket_label": bucket["label"],
+            }
+            for bucket in scenario_buckets
+            if bucket.get("follow_up")
+        ]
+
     def _generate_event_config(
         self,
         context: str,
@@ -664,15 +884,29 @@ Simulation requirement: {simulation_requirement}
 Please generate an event configuration JSON:
 - Extract trending topic keywords
 - Describe the narrative development direction
-- Design initial post content; **each post must specify a poster_type (publisher type)**
+- Build 3-5 taxonomy-driven scenario buckets that intentionally cover different reaction angles
+- Each scenario bucket must specify a poster_type (publisher type) selected from the available entity types
+- Each scenario bucket must include a seed_post that can be used as an initial simulation post
+- Optionally include aligned initial_posts if useful, but the scenario_buckets are the primary coverage structure
 
-**Important**: poster_type must be selected from the "Available Entity Types" above, so that initial posts can be assigned to suitable Agents for publishing.
+**Important**: poster_type must be selected from the "Available Entity Types" above, so that scenario buckets and initial posts can be assigned to suitable Agents for publishing.
 For example: official statements should be published by Official/University types, news by MediaOutlet types, student opinions by Student types.
 
 Return JSON format (no markdown):
 {{
     "hot_topics": ["keyword1", "keyword2", ...],
     "narrative_direction": "<narrative development direction description>",
+    "scenario_buckets": [
+        {{
+            "label": "<short bucket name>",
+            "focus": "<what this reaction lane explores>",
+            "poster_type": "<entity type from available types>",
+            "seed_post": "<initial post content for this bucket>",
+            "follow_up": "<later-stage follow-up or counter-angle>",
+            "trigger_round": 2,
+            "topics": ["keyword1", "keyword2"]
+        }}
+    ],
     "initial_posts": [
         {{"content": "post content", "poster_type": "entity type (must be from available types)"}},
         ...
@@ -680,7 +914,7 @@ Return JSON format (no markdown):
     "reasoning": "<brief explanation>"
 }}"""
 
-        system_prompt = "You are a public opinion analysis expert. Return pure JSON format. Note that poster_type must exactly match available entity types."
+        system_prompt = "You are a public opinion analysis expert. Return pure JSON format. Note that poster_type must exactly match available entity types, and scenario_buckets should cover distinct reaction lanes instead of repeating the same angle."
 
         try:
             return self._call_llm_with_retry(prompt, system_prompt)
@@ -693,13 +927,38 @@ Return JSON format (no markdown):
                 "reasoning": "Using default configuration"
             }
 
-    def _parse_event_config(self, result: Dict[str, Any]) -> EventConfig:
-        """Parse event configuration result"""
+    def _parse_event_config(
+        self,
+        result: Dict[str, Any],
+        *,
+        simulation_requirement: str = "",
+        entities: Optional[List[EntityNode]] = None,
+    ) -> EventConfig:
+        """Parse event configuration result and normalize taxonomy-driven scenario buckets."""
+        scenario_buckets = self._normalize_scenario_buckets(
+            result,
+            simulation_requirement,
+            entities or [],
+        )
+        initial_posts = self._build_initial_posts_from_buckets(
+            list(result.get("initial_posts", []) or []),
+            scenario_buckets,
+        )
+        scheduled_events = self._build_scheduled_events_from_buckets(
+            list(result.get("scheduled_events", []) or []),
+            scenario_buckets,
+        )
+        hot_topics = self._dedupe_strings(
+            list(result.get("hot_topics", []) or [])
+            + [topic for bucket in scenario_buckets for topic in bucket.get("topics", [])],
+            limit=8,
+        )
         return EventConfig(
-            initial_posts=result.get("initial_posts", []),
-            scheduled_events=[],
-            hot_topics=result.get("hot_topics", []),
-            narrative_direction=result.get("narrative_direction", "")
+            initial_posts=initial_posts,
+            scheduled_events=scheduled_events,
+            hot_topics=hot_topics,
+            narrative_direction=result.get("narrative_direction", ""),
+            scenario_buckets=scenario_buckets,
         )
 
     def _assign_initial_post_agents(
@@ -776,11 +1035,11 @@ Return JSON format (no markdown):
                 else:
                     matched_agent_id = 0
 
-            updated_posts.append({
-                "content": content,
-                "poster_type": post.get("poster_type", "Unknown"),
-                "poster_agent_id": matched_agent_id
-            })
+            updated_post = dict(post)
+            updated_post["content"] = content
+            updated_post["poster_type"] = post.get("poster_type", "Unknown")
+            updated_post["poster_agent_id"] = matched_agent_id
+            updated_posts.append(updated_post)
 
             logger.info(f"Initial post assignment: poster_type='{poster_type}' -> agent_id={matched_agent_id}")
 
