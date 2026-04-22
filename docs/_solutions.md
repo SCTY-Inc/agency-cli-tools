@@ -1,5 +1,9 @@
 # Solutions Log
 
+## 2026-04-22 — Repo-local smoke, eval, and study workflows were recovered from mixed local state without restoring generated artifacts
+- Problem: several real operator-facing improvements were stranded in a mixed local stash alongside disposable generated pipeline artifacts, which left the repo clean only by hiding useful code rather than integrating it.
+- Fix: the durable parts were recovered and shipped — Echo smoke mode plus split graph/report helpers and tests, Vox structured eval cases plus saved eval-report workflows, Compass stage normalization / Claude CLI / honest unsupported surfaces, Pulse study-path recovery, and the small shared protocol helper layer — while generated `artifacts/**` outputs and other low-signal leftovers were intentionally discarded.
+
 ## 2026-04-22 — Root `agentcy member --json` now normalizes cross-member machine contracts
 - Problem: even after tightening Compass, the suite still had real JSON-shape differences across members (`pulse` emitted a normalized envelope, `vox` used raw global JSON, `echo` mixed raw JSON with `success:false` errors, and `loom` wrapped its own command/data shape). That made root-level automation depend on per-member quirks.
 - Fix: the root dispatcher now exposes `agentcy member <member> --json ...`, which injects each member's appropriate JSON mode when possible, captures the member output, and returns one root envelope with normalized `member_status`, `member_command`, `result`, and `stderr` fields.

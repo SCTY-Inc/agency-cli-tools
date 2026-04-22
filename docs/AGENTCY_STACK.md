@@ -21,12 +21,12 @@ Use the consolidation doc as historical context and a source of concrete contrac
 
 | Current repo | Module | Role now |
 | --- | --- | --- |
-| `protocols` | `agentcy-protocols` | parent protocol authority for schemas, examples, lineage rules, and thin handoff adapters |
+| `protocols` | `agentcy-protocols` | parent protocol authority for schemas, examples, lineage rules, thin handoff adapters, and narrow shared helper utilities |
 | `agentcy-compass` | `agentcy-compass` | strategy / policy / brief layer |
 | `agentcy-echo` | `agentcy-echo` | foresight / forecast layer |
 | `agentcy-loom` | `agentcy-loom` | execution / review / publish runtime |
 | `agentcy-pulse` | `agentcy-pulse` | analytics / attribution / feedback + repo-local study layer |
-| `agentcy-vox` | `agentcy-vox` | voice / persona / drift layer |
+| `agentcy-vox` | `agentcy-vox` | voice / persona / drift layer + repo-local eval-report workflows |
 
 The current operator layer at the monorepo root is `agentcy`, which now provides `doctor`, `pipeline run`, `pipeline update`, and `pipeline study` over the member CLIs without changing the canonical protocol writers. Preview bundles are module-first (`vox/`, `compass/`, `echo/`, `loom/`, `pulse/`, `reports/`), can use stable names via `--pipeline-id`, and can forward compatible root `--provider` / `--model` choices into Compass as `BRANDOPS_LLM_PROVIDER` / `BRANDOPS_LLM_MODEL`.
 

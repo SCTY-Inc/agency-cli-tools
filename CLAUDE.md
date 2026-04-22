@@ -6,7 +6,7 @@ Agent CLI suite. Six tools that chain sequentially through a shared protocol lay
 
 | Dir | Bin | Role |
 |-----|-----|------|
-| `protocols/` | (lib) | Shared schemas + adapters — `agentcy-protocols` pip package |
+| `protocols/` | (lib) | Shared schemas + adapters + narrow helper utilities — `agentcy-protocols` pip package |
 | `vox/` | `agentcy-vox` | Persona management — create, test, optimize, export |
 | `compass/` | `agentcy-compass` | Brand ops — signals → plan → produce → publish |
 | `echo/` | `agentcy-echo` | Swarm prediction — docs + requirement → social forecast |

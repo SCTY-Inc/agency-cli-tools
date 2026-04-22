@@ -62,11 +62,19 @@ src/brand_os/
 │   ├── base.py         # Base Agent protocol
 │   ├── market.py       # Market analyst (LLM-powered)
 │   └── threat.py       # Threat assessor
-├── persona/            # Persona management + shared storage helpers
+├── persona/            # Persona management + storage helpers
+│   ├── cli.py          # Deprecated persona CLI surface
+│   ├── crud.py         # Persona CRUD via storage helpers
+│   └── storage.py      # Persona filesystem persistence
+├── plan/               # Brief stages + canonical brief_v1 emission
+│   ├── brief_v1.py     # brief.v1 builder / writer
+│   └── stages/
+│       └── normalize.py # Stage-output coercion before Pydantic validation
 ├── intel/              # Competitive intelligence
 ├── produce/            # Content production
 ├── eval/               # Content evaluation
 ├── publish/            # Social publishing
+├── monitor/            # Reporting + analysis helpers
 └── server/             # API surface + explicit MCP stub
 
 brands/                 # Brand configurations

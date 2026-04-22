@@ -136,6 +136,14 @@ Optional focus examples:
 
 ## Session log
 
+### 2026-04-22 — recovered smoke/eval/study surfaces from mixed local state
+
+- Recovered and shipped the durable parts of a mixed local stash instead of leaving them hidden behind a clean worktree.
+- `agentcy-echo` now keeps its deterministic smoke-mode path, split graph retrieval/report support modules, and the supporting test coverage in the live repo.
+- `agentcy-vox` now keeps structured eval tiers plus saved eval-report inspection (`evals --latest`, `evals --compare`) in the live repo.
+- `agentcy-compass` now keeps stage normalization, Claude CLI provider support, and explicit unsupported optional surfaces in the live repo.
+- Generated `artifacts/**` outputs and other low-signal leftovers were intentionally discarded rather than restored.
+
 ### 2026-04-18 — root operator layer and repo-local eval loops landed
 
 - Added a real root `agentcy` operator surface with member env forwarding, richer `doctor` output, persisted pipeline manifests, `pipeline run`, `pipeline update`, and `pipeline study`.

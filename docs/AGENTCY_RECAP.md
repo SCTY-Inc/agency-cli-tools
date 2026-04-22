@@ -28,7 +28,7 @@ Current target family in lowercase kebab-case:
 
 ## Current repo directories after rename
 
-- `protocols` (shared schema/example/adapter authority)
+- `protocols` (shared schema/example/adapter authority, plus narrow shared JSON/LLM helper utilities)
 - `agentcy-vox` (formerly `cli-prsna`)
 - `agentcy-compass` (formerly `brand-os`)
 - `agentcy-echo` (formerly `cli-mirofish`)
@@ -66,6 +66,10 @@ Does not own:
 - strategy
 - publishing
 - analytics
+
+Operator note:
+- `agentcy-vox test --difficulty ... --save-report` now writes repo-local eval artifacts under `~/.prsna/evals/`
+- `agentcy-vox evals --latest|--compare` reopens those saved reports for operator review without widening canonical protocols
 
 ### `agentcy-compass`
 Strategy / policy / briefs / decisioning layer.

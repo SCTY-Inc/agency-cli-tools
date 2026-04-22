@@ -137,7 +137,7 @@ uv run pytest
 ruff check src/
 ```
 
-Loop-9 proof work should keep help/version/install examples honest. Until a future-facing alias is actually implemented and proven, continue documenting `persona` as the operator-facing CLI and `prsna` as the package/import surface.
+Loop-9 proof work should keep help/version/install examples honest. Historical packaged-install proof may still mention the old `persona` binary, but current operator-facing docs in this repo should use `agentcy-vox` for the CLI and `prsna` for the package/import surface.
 
 ## Common Tasks
 

@@ -1,6 +1,6 @@
 # CODEMAP
 
-Navigation map for the MiroFish codebase. 86 Python files.
+Navigation map for the MiroFish codebase. 87 Python files.
 
 ## Entry point
 
