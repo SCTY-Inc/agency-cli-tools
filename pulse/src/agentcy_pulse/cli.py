@@ -12,7 +12,7 @@ from .adapter import CANONICAL_RUN_RESULT_PATH, adapt_canonical_run_result_to_pe
 _PROTOCOLS_ROOT = Path(__file__).resolve().parents[3] / "protocols"
 _CANONICAL_FORECAST = _PROTOCOLS_ROOT / "examples" / "forecast.v1.completed-rich.json"
 _CANONICAL_PERFORMANCE = _PROTOCOLS_ROOT / "examples" / "performance.v1.rich.json"
-_COMMANDS = {"adapt", "calibrate", "doctor"}
+_COMMANDS = {"adapt", "calibrate", "doctor", "study"}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,6 +34,18 @@ def build_parser() -> argparse.ArgumentParser:
     calibrate.add_argument("--forecast", type=Path, default=_CANONICAL_FORECAST)
     calibrate.add_argument("--performance", type=Path, default=_CANONICAL_PERFORMANCE)
     calibrate.add_argument("--output", type=Path)
+
+    study = sub.add_parser(
+        "study",
+        help="forecast.v1 + performance.v1 + optional eval sidecars → study report",
+    )
+    study.add_argument("--forecast", type=Path)
+    study.add_argument("--performance", type=Path)
+    study.add_argument("--echo-eval", type=Path)
+    study.add_argument("--persona-eval", type=Path)
+    study.add_argument("--pipeline-manifest", type=Path)
+    study.add_argument("--echo-run-dir", type=Path)
+    study.add_argument("--output", type=Path)
 
     doctor = sub.add_parser("doctor", help="Check fixture availability")
     doctor.add_argument("--output", type=Path)
@@ -89,6 +101,29 @@ def main(argv: Sequence[str] | None = None) -> int:
             report,
             args.output,
             command="calibrate",
+            json_out=json_out,
+        )
+        return 0
+
+    if args.command == "study":
+        from .synthetic_analysis import build_study_report
+
+        default_forecast = (
+            None if args.pipeline_manifest or args.echo_run_dir else _CANONICAL_FORECAST
+        )
+        default_performance = None if args.pipeline_manifest else _CANONICAL_PERFORMANCE
+        report = build_study_report(
+            args.forecast or default_forecast,
+            args.performance or default_performance,
+            echo_eval_path=args.echo_eval,
+            persona_eval_path=args.persona_eval,
+            pipeline_manifest_path=args.pipeline_manifest,
+            echo_run_dir=args.echo_run_dir,
+        )
+        _emit(
+            report,
+            args.output,
+            command="study",
             json_out=json_out,
         )
         return 0

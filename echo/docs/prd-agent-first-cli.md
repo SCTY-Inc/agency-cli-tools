@@ -67,7 +67,7 @@ The browser UI is not required for v1. If retained later, it should be a minimal
 
 ### Primary interface
 
-A single CLI executable, `mirofish`.
+A single CLI executable, `agentcy-echo` (historically `mirofish`).
 
 ### Optional human-facing surface
 
@@ -101,30 +101,43 @@ The CLI must be:
 4. The end-to-end `run` command blocks by default and accepts `--wait` for compatibility.
 5. Failures return non-zero exit codes.
 6. Returned IDs are stable and reusable across commands.
+7. A bounded `--smoke` mode exists for fast deterministic artifact proof when the live OASIS runtime is unavailable or too slow.
 
 ## Proposed command surface
 
 ### Public surface
 
-- `mirofish run`
-- `mirofish runs list`
-- `mirofish runs status`
-- `mirofish runs export`
+- `agentcy-echo run`
+- `agentcy-echo runs list`
+- `agentcy-echo runs status`
+- `agentcy-echo runs export`
 
 Step-level commands are not part of the public v1 CLI.
 
-Graph build, simulation preparation, simulation execution, and report generation remain internal workflow stages behind `mirofish run`.
+Graph build, simulation preparation, simulation execution, and report generation remain internal workflow stages behind `agentcy-echo run`.
 
 ## Example command shape
 
 ```bash
-mirofish run \
+agentcy-echo run \
   --files docs/policy.pdf notes/context.md \
   --requirement "Predict public reaction over 30 days" \
   --output-dir uploads/runs \
   --wait \
   --json
 ```
+
+Bounded fast-path for e2e validation:
+
+```bash
+agentcy-echo run \
+  --files docs/policy.pdf notes/context.md \
+  --requirement "Predict public reaction over 30 days" \
+  --smoke \
+  --json
+```
+
+`--smoke` keeps ontology, graph build, and profile/config preparation live, then skips the long OASIS subprocess and emits deterministic timeline/report/eval artifacts instead.
 
 ## Run artifacts
 
@@ -147,6 +160,8 @@ uploads/runs/<run_id>/
   report/
     summary.json
     report.md
+  eval/
+    run_eval.v1.json
   visuals/
     swarm-overview.svg
     cluster-map.svg
@@ -154,6 +169,7 @@ uploads/runs/<run_id>/
     platform-split.svg
   logs/
     run.log
+    llm_telemetry.jsonl
 ```
 
 ## Visual snapshot requirements
@@ -285,7 +301,7 @@ The refactor is done when all of the following are true:
 
 ## Risks
 
-1. The existing simulation/report architecture may still be too heavy for CLI-based LLM providers under long runs.
+1. The existing simulation/report architecture may still be too heavy for CLI-based LLM providers under long runs; the bounded `--smoke` path helps with artifact proof, but it does not replace a full behavioral simulation.
 2. Report generation and live interview features may remain the least reliable parts of the pipeline.
 3. Snapshot generation can drift from the underlying state if run artifacts are not frozen correctly.
 

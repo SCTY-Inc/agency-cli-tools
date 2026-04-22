@@ -1,63 +1,22 @@
 """Persona CRUD operations."""
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
-import yaml
-
-from brand_os.core.storage import data_dir
-
-
-def personas_dir() -> Path:
-    """Get the personas directory."""
-    path = data_dir() / "personas"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-def list_personas() -> list[str]:
-    """List all available personas."""
-    pdir = personas_dir()
-    return sorted(
-        p.stem for p in pdir.glob("*.yaml") if not p.name.startswith(".")
-    )
-
-
-def get_persona_path(name: str) -> Path:
-    """Get the path to a persona file."""
-    return personas_dir() / f"{name}.yaml"
-
-
-def load_persona(name: str) -> dict[str, Any]:
-    """Load a persona by name."""
-    path = get_persona_path(name)
-    if not path.exists():
-        raise ValueError(f"Persona not found: {name}")
-    with open(path) as f:
-        return yaml.safe_load(f) or {}
-
-
-def save_persona(name: str, data: dict[str, Any]) -> Path:
-    """Save a persona to disk."""
-    path = get_persona_path(name)
-    with open(path, "w") as f:
-        yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
-    return path
+from brand_os.persona.storage import (
+    delete_persona,
+    get_persona_path,
+    list_personas,
+    load_persona,
+    personas_dir,
+    save_persona,
+)
 
 
 def get_persona(name: str) -> dict[str, Any]:
     """Get a persona by name (alias for load_persona)."""
     return load_persona(name)
 
-
-def delete_persona(name: str) -> bool:
-    """Delete a persona by name."""
-    path = get_persona_path(name)
-    if path.exists():
-        path.unlink()
-        return True
-    return False
 
 
 def init_persona(name: str) -> dict[str, Any]:
@@ -80,16 +39,14 @@ def init_persona(name: str) -> dict[str, Any]:
     return template
 
 
+
 def create_persona(
     description: str,
     name: str | None = None,
     from_person: bool = False,
     from_role: bool = False,
 ) -> dict[str, Any]:
-    """Create a persona using AI generation.
-
-    This is a placeholder - full implementation will use LLM bootstrap.
-    """
+    """Create and persist a persona via the bootstrap flow."""
     from brand_os.persona.bootstrap import bootstrap_persona
 
     return bootstrap_persona(
@@ -98,3 +55,16 @@ def create_persona(
         from_person=from_person,
         from_role=from_role,
     )
+
+
+__all__ = [
+    "create_persona",
+    "delete_persona",
+    "get_persona",
+    "get_persona_path",
+    "init_persona",
+    "list_personas",
+    "load_persona",
+    "personas_dir",
+    "save_persona",
+]

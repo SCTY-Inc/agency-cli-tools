@@ -220,6 +220,7 @@ class CLIModel(OpenAIModel):
 
 def create_oasis_model(config: Dict[str, Any], use_boost: bool = False):
     """Create the CAMEL model used by OASIS simulations."""
+    _ = use_boost
     require_simulation_runtime()
 
     provider = (
@@ -242,4 +243,5 @@ def create_oasis_model(config: Dict[str, Any], use_boost: bool = False):
 
 def get_oasis_semaphore(config: Dict[str, Any], use_boost: bool = False) -> int:
     """Get CLI-appropriate OASIS concurrency limit."""
+    _ = (config, use_boost)
     return int(os.environ.get('OASIS_CLI_SEMAPHORE', str(DEFAULT_CLI_SEMAPHORE)))

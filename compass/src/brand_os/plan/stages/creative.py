@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from brand_os.core.llm import complete_json
+from brand_os.plan.stages.normalize import normalize_creative_result
 
 
 class Headline(BaseModel):
@@ -82,4 +83,4 @@ def creative(
 
     result = complete_json(prompt=prompt, system=CREATIVE_SYSTEM, default=default)
 
-    return CreativeResult(**result)
+    return CreativeResult(**normalize_creative_result(result))

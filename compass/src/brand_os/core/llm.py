@@ -4,24 +4,13 @@ import asyncio
 import json
 import os
 import re
+import shutil
+import subprocess
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any
 
-
-class ProviderError(RuntimeError):
-    pass
-
-
-class LLMProvider(Protocol):
-    def complete(self, prompt: str, system: str | None = None, model: str | None = None) -> str: ...
-
-    def complete_json(
-        self,
-        prompt: str,
-        system: str | None = None,
-        model: str | None = None,
-        default: dict[str, Any] | None = None,
-    ) -> dict[str, Any]: ...
+from agentcy_protocols.llm import LLMError as ProviderError
+from agentcy_protocols.llm import LLMProvider  # noqa: F401 — re-exported for local callers
 
 
 @dataclass
@@ -132,6 +121,64 @@ class AnthropicProvider:
         return _parse_json(text, default)
 
 
+class ClaudeCLIProvider:
+    """Claude Code CLI provider for local operator runs."""
+
+    def __init__(self):
+        self.cli_path = shutil.which("claude")
+        if not self.cli_path:
+            raise ProviderError("claude CLI not found")
+
+    def _model(self, model: str | None = None) -> str | None:
+        return model or os.getenv("BRANDOPS_LLM_MODEL") or os.getenv("CLAUDE_MODEL") or None
+
+    def complete(self, prompt: str, system: str | None = None, model: str | None = None) -> str:
+        prompt_parts = []
+        if system:
+            prompt_parts.append(f"SYSTEM INSTRUCTIONS:\n{system}\n")
+        prompt_parts.append(prompt)
+        final_prompt = "\n\n".join(part for part in prompt_parts if part)
+
+        command = [self.cli_path, "-p"]
+        resolved_model = self._model(model)
+        if resolved_model:
+            command.extend(["--model", resolved_model])
+        command.extend(["--output-format", "json", final_prompt])
+
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=300,
+                cwd="/tmp",
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise ProviderError("claude CLI timed out after 300s") from exc
+
+        if result.returncode != 0:
+            message = (result.stderr or result.stdout or "claude CLI failed").strip()
+            raise ProviderError(message)
+
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return result.stdout.strip()
+
+        return str(payload.get("result") or result.stdout).strip()
+
+    def complete_json(
+        self,
+        prompt: str,
+        system: str | None = None,
+        model: str | None = None,
+        default: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        full_prompt = f"{prompt}\n\nRespond with valid JSON only, no markdown."
+        text = self.complete(full_prompt, system, model)
+        return _parse_json(text, default)
+
+
 def _parse_json(text: str, default: dict[str, Any] | None = None) -> dict[str, Any]:
     """Extract JSON from LLM response, handling markdown code blocks."""
     # Try to find JSON in code blocks
@@ -151,7 +198,13 @@ def _parse_json(text: str, default: dict[str, Any] | None = None) -> dict[str, A
 
 
 def get_provider(name: str | None = None) -> LLMProvider:
-    provider = name or os.getenv("BRANDOPS_LLM_PROVIDER", "gemini")
+    provider = name or os.getenv("BRANDOPS_LLM_PROVIDER")
+    if not provider:
+        llm_provider = os.getenv("LLM_PROVIDER", "").strip().lower()
+        if llm_provider in {"mock", "gemini", "anthropic", "claude-cli"}:
+            provider = llm_provider
+        else:
+            provider = "gemini"
 
     if provider == "mock":
         return MockProvider()
@@ -159,6 +212,8 @@ def get_provider(name: str | None = None) -> LLMProvider:
         return GeminiProvider()
     elif provider == "anthropic":
         return AnthropicProvider()
+    elif provider == "claude-cli":
+        return ClaudeCLIProvider()
 
     raise ProviderError(f"Unknown LLM provider: {provider}")
 

@@ -3,6 +3,7 @@ LLM Client — CLI-only providers (Claude Code, Codex).
 """
 
 import json
+import os
 import re
 import subprocess
 from typing import Optional, Dict, Any, List
@@ -11,6 +12,20 @@ from ..config import Config
 from .logger import get_logger
 
 logger = get_logger('mirofish.llm_client')
+
+
+def _telemetry_path() -> str | None:
+    value = os.environ.get("AGENTCY_LLM_TELEMETRY_FILE", "").strip()
+    return value or None
+
+
+def _append_telemetry(record: dict) -> None:
+    path = _telemetry_path()
+    if not path:
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
 class LLMClient:
@@ -77,8 +92,13 @@ class LLMClient:
         prompt = "\n\n".join(prompt_parts)
 
         try:
+            command = ["claude", "-p"]
+            if Config.CLAUDE_MODEL:
+                command.extend(["--model", Config.CLAUDE_MODEL])
+            command.extend(["--output-format", "json", prompt])
+
             result = subprocess.run(
-                ["claude", "-p", "--output-format", "json", prompt],
+                command,
                 capture_output=True, text=True, timeout=300,
                 cwd="/tmp"
             )
@@ -90,6 +110,16 @@ class LLMClient:
             try:
                 output = json.loads(result.stdout)
                 content = output.get("result", result.stdout)
+                _append_telemetry(
+                    {
+                        "provider": "claude-cli",
+                        "model": Config.CLAUDE_MODEL,
+                        "duration_ms": output.get("duration_ms"),
+                        "total_cost_usd": output.get("total_cost_usd"),
+                        "usage": output.get("usage"),
+                        "modelUsage": output.get("modelUsage"),
+                    }
+                )
             except json.JSONDecodeError:
                 content = result.stdout.strip()
 
@@ -146,6 +176,14 @@ class LLMClient:
                 content = "\n".join(clean_lines).strip()
             else:
                 content = raw
+            _append_telemetry(
+                {
+                    "provider": "codex-cli",
+                    "model": None,
+                    "duration_ms": None,
+                    "total_cost_usd": None,
+                }
+            )
             return self._clean_content(content)
 
         except subprocess.TimeoutExpired:

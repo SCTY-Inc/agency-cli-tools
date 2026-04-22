@@ -11,6 +11,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from brand_os.core.llm import complete_json
+from brand_os.plan.stages.normalize import normalize_strategy_result
 
 
 class AudienceSegment(BaseModel):
@@ -111,4 +112,4 @@ def strategy(
 
     result = complete_json(prompt=prompt, system=STRATEGY_SYSTEM, default=default)
 
-    return StrategyResult(**result)
+    return StrategyResult(**normalize_strategy_result(result))

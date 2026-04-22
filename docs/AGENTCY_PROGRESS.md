@@ -1,32 +1,34 @@
 # AGENTCY_PROGRESS
 
-Updated: 2026-04-14
+Updated: 2026-04-20
 
-Note: literal repo directory renames to the `agentcy-*` names landed on 2026-04-12. Historical loop entries below intentionally preserve pre-rename repo names where they describe the evidence as it was produced. The 2026-04-14 family checkpoint is the current bounded synthesis; mixed writer contracts remain intentionally locked.
+Note: literal repo directory renames to the `agentcy-*` names landed on 2026-04-12. Historical loop entries below intentionally preserve pre-rename repo names where they describe the evidence as it was produced. The 2026-04-14 family checkpoint is the current bounded synthesis; mixed writer contracts remain intentionally locked. Historical `agentcy-lab` mentions below are now superseded by the live monorepo shape, where bounded calibration/study work lives under `agentcy-pulse`.
 
 ## Current phase
 
 The current bounded synthesis is `_agentcy-docs/family-deep-review-checkpoint-2026-04-14.md`.
 
-Current six-repo family set:
+Current live six-module monorepo set:
+- `protocols`
 - `agentcy-compass`
 - `agentcy-echo`
-- `agentcy-lab`
 - `agentcy-loom`
 - `agentcy-pulse`
 - `agentcy-vox`
 
 Supporting/control-plane surfaces that must be narrated separately:
 - `cli-agency` as supporting source material, not a family product module or canonical artifact writer
-- `protocols` as the parent protocol authority, not a seventh family product repo
 
 Current family readout:
-- live repo directories are now `agentcy-*`, but mixed writer contracts remain intentionally locked for the five canonical artifacts
+- live monorepo members are now `protocols`, `agentcy-vox`, `agentcy-compass`, `agentcy-echo`, `agentcy-loom`, and `agentcy-pulse`
+- mixed writer contracts remain intentionally locked for the five canonical artifacts even though the package/bin layer is `agentcy-*`
+- the root `agentcy` dispatcher now exposes `doctor`, `pipeline run`, `pipeline update`, and `pipeline study` as the operator entry surface
+- `agentcy pipeline run --mode preview` now writes a module-first repo-local bundle (`vox/`, `compass/`, `echo/`, `loom/`, `pulse/`, `reports/`) plus `bundle_manifest.json` and an auto-generated operator report
+- root pipeline bundles can now use stable named folders via `--pipeline-id`, so operator runs can land at paths like `artifacts/pipelines/givecare-launch-01/`
+- `agentcy-echo` now has a deterministic `--smoke` path plus repo-local `run_eval` and `llm_telemetry` artifacts for fast e2e proof without widening canonical protocols
+- full echo CLI automation now exits cleanly instead of lingering in command-waiting mode, and the single-platform scripts emit action logs again for downstream timeline/report assembly
+- `agentcy-vox` and `agentcy-pulse` now use repo-local eval/study artifacts (`evals --compare`, `study`, manifest/echo-run discovery) instead of widening the canonical family schemas
 - `agentcy-compass` remains the highest boundary-risk hotspot
-- `agentcy-echo` remains the highest compatibility/attribution hotspot
-- `agentcy-lab` is aligned and scan-sufficient
-- `agentcy-loom`, `agentcy-vox`, and `agentcy-pulse` are primarily docs/control-plane narration hotspots rather than ownership-change hotspots
-- current control-plane updates must record live repo-directory reality without implying writer-contract normalization, umbrella CLI work, MCP-first integration, or broader runtime unification
 
 Loop 12 still remains the active repo-local control-plane slice for the bounded `cli-metrics` / `agentcy-pulse` first minimal repo-birth wave beneath this checkpoint:
 - canonical artifact ownership remains unchanged, with `performance.v1` still owned by `cli-metrics` / `agentcy-pulse`
@@ -45,7 +47,17 @@ Loop 12 still remains the active repo-local control-plane slice for the bounded 
 - Added project subagents for breadth recon, planning, implementation, and review
 - Added `/continue-agentcy` prompt template
 - Created `AGENTCY_STACK.md` and this progress log
-- Created minimal `agentcy-lab` repo with package/distribution `agentcy-lab`, import root `agentcy_lab`, CLI binary `agentcy-lab`, and a first bounded `forecast.v1 -> performance.v1` calibration report seam
+- Landed the root dispatcher operator layer in `src/agentcy/cli.py` with `doctor`, `pipeline run`, `pipeline update`, and `pipeline study`
+- Added bounded repo-local analysis surfaces without widening canonical protocols:
+  - `agentcy-echo run --smoke` + `run_eval.v1.json` + `logs/llm_telemetry.jsonl`
+  - `agentcy-vox evals --compare`
+  - `agentcy-pulse study` with pipeline-manifest and echo-run auto-discovery
+- Hardened the operator happy path:
+  - root pipeline bundles are now module-first and emit one operator report automatically
+  - full echo CLI runs now pass `--no-wait` to the simulation subprocess
+  - Compass stage outputs are normalized before Pydantic validation so near-schema LLM output no longer crashes the stage immediately
+  - Compass can now use local `claude-cli` / `CLAUDE_MODEL` for planning runs, which avoids the Gemini 429 fallback path on operator E2Es
+- Historical note: the earlier `agentcy-lab` calibration/eval concept is now effectively absorbed into the live `agentcy-pulse` repo-local study/calibration layer
 
 ## Working assumptions
 
@@ -73,7 +85,7 @@ Loop 12 still remains the active repo-local control-plane slice for the bounded 
    - `agentcy-loom`: refresh packaged-help proof wording so current repo path, preserved writer repo, and live package/bin surfaces are clearly separated
    - `agentcy-vox`: clarify family-level narration instead of starting package/import/CLI rename work
    - `agentcy-pulse`: record live `agentcy-pulse/` repo reality in loop-12 family docs while preserving `writer.repo = "cli-metrics"`
-6. Treat `agentcy-lab` as scan-sufficient with no immediate follow-up unless another stable protocol-backed seam later justifies a new bounded calibration task.
+6. Treat the historical `agentcy-lab` concept as absorbed into the live `agentcy-pulse` calibration/study layer; no separate lab follow-up is active unless another stable protocol-backed seam later justifies a new bounded module.
 7. Keep the following explicitly deferred:
    - literal family repo renames
    - umbrella CLI work
@@ -123,6 +135,15 @@ Optional focus examples:
 - `AGENTCY_PROGRESS.md` should be updated whenever a meaningful architecture, protocol, or implementation milestone lands.
 
 ## Session log
+
+### 2026-04-18 — root operator layer and repo-local eval loops landed
+
+- Added a real root `agentcy` operator surface with member env forwarding, richer `doctor` output, persisted pipeline manifests, `pipeline run`, `pipeline update`, and `pipeline study`.
+- Added bounded repo-local eval/report surfaces instead of widening canonical family artifacts:
+  - `agentcy-echo`: `run_eval.v1.json`, `--smoke`, and per-run `logs/llm_telemetry.jsonl`
+  - `agentcy-vox`: saved eval reports plus `evals --compare`
+  - `agentcy-pulse`: `study`, plus forecast/eval discovery from pipeline manifests or echo run dirs
+- Preserved the current protocol decision: canonical schemas/examples stay narrow; richer analysis remains repo-local sidecars and manifests.
 
 ### 2026-04-12 — loop bootstrap
 

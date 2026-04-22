@@ -336,10 +336,13 @@ def build_brief_v1(
         if item.get("channel")
     ]
 
+    sources = research_result.get("sources") or [{}]
+    first_source = sources[0] if isinstance(sources[0], dict) else {}
+
     signal = BriefSignal(
         source=(
             signal_source
-            or research_result.get("sources", [{}])[0].get("title")
+            or first_source.get("title")
             or "planning-input"
         ),
         summary=insights[0] if insights else brief,

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
+
+from agentcy_protocols.utils import load_json
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 CANONICAL_FORECAST_PATH = WORKSPACE_ROOT / "protocols" / "examples" / "forecast.v1.completed-rich.json"
@@ -28,8 +29,7 @@ METRIC_ALIASES = {
 }
 
 
-def _load_json(path: Path | str) -> dict[str, Any]:
-    return json.loads(Path(path).read_text())
+_load_json = load_json
 
 
 def run_doctor_checks() -> list[dict[str, Any]]:

@@ -106,6 +106,7 @@ class GraphDatabase:
         base_path: Optional[str] = None,
         storage_backend: Optional[str] = None,
     ):
+        _ = storage_backend
         self.base_path = base_path or Config.DATA_DIR
         os.makedirs(self.base_path, exist_ok=True)
 

@@ -101,6 +101,7 @@ class ForecastV1(BaseModel):
 
 
 def _load_json(path: Path) -> dict[str, Any] | list[Any] | None:
+    # Returns list | dict | None — broader than agentcy_protocols.utils.load_json
     if not path.exists():
         return None
     return json.loads(path.read_text(encoding="utf-8"))

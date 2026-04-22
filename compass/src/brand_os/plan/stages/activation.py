@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from brand_os.core.llm import complete_json
+from brand_os.plan.stages.normalize import normalize_activation_result
 
 
 class ChannelPlan(BaseModel):
@@ -53,7 +54,8 @@ ACTIVATION_SYSTEM = """You are a senior marketing activation specialist.
 Based on the creative, develop a detailed activation plan.
 
 Output JSON with:
-- channels: list of channel plans with channel, objective, tactics, content_types, frequency, budget_allocation
+- channels: list of channel plans with channel, objective, tactics,
+  content_types, frequency, budget_allocation
 - calendar: content calendar items with week/date, channel, content_type, topic, notes
 - kpis: list of KPIs with metric, target, channel
 - budget_allocation: dict mapping channels to budget percentages
@@ -103,4 +105,4 @@ def activation(
 
     result = complete_json(prompt=prompt, system=ACTIVATION_SYSTEM, default=default)
 
-    return ActivationResult(**result)
+    return ActivationResult(**normalize_activation_result(result))

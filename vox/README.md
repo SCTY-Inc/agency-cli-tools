@@ -25,6 +25,8 @@ uv pip install -e .
 
 **Turn AI personas from throwaway prompt strings into managed, testable, self-improving assets.**
 
+Recent repo-local upgrade: persona bootstrap now runs a repair pass for internal consistency, and `agentcy-vox test` can generate `basic`, `mixed`, and `stress` eval tiers with optional saved reports for later operator review.
+
 | Without prsna | With prsna |
 |---------------|------------|
 | Prompts scattered across files | `agentcy-vox ls` — versioned library |
@@ -48,8 +50,14 @@ agentcy-vox create --like "Marc Andreessen" "tech investor"
 # Chat with it
 agentcy-vox chat journalist
 
-# Check consistency
-agentcy-vox test journalist
+# Check consistency with generated eval tiers
+agentcy-vox test journalist --difficulty stress --save-report
+
+# Inspect saved eval reports
+agentcy-vox evals journalist --latest
+
+# Compare the latest two eval reports
+agentcy-vox evals journalist --compare
 
 # Let it learn from interactions
 agentcy-vox learn journalist --apply
@@ -115,9 +123,12 @@ agentcy-vox mix scientist comedian --as science-comedian
 agentcy-vox enrich scientist --query "MIT AI researcher"
 
 # TEST & OPTIMIZE
-agentcy-vox test scientist --samples 10      # DSPy consistency check
-agentcy-vox optimize scientist --iterations 50  # GEPA prompt evolution
-agentcy-vox drift scientist "response text"  # Check single response
+agentcy-vox test scientist --difficulty mixed --samples 6     # structured eval tiers + drift-based scoring
+agentcy-vox test scientist --cases cases.json --save-report   # custom eval corpus + saved report under ~/.prsna/evals/
+agentcy-vox evals scientist --latest                          # inspect latest saved eval report
+agentcy-vox evals scientist --compare                         # compare latest vs previous saved report
+agentcy-vox optimize scientist --iterations 50               # GEPA prompt evolution
+agentcy-vox drift scientist "response text"                  # Check single response
 
 # LEARN & IMPROVE
 agentcy-vox learn scientist --apply     # Learn from logged interactions

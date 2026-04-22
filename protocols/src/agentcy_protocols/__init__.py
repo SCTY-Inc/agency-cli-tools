@@ -19,5 +19,16 @@ EXAMPLES = {
 }
 
 from .adapters import adapt_run_result_to_performance  # noqa: E402
+from .llm import LLMError, LLMProvider  # noqa: E402
+from .utils import load_json, load_json_optional, write_json  # noqa: E402
 
-__all__ = ["SCHEMAS", "EXAMPLES", "adapt_run_result_to_performance"]
+__all__ = [
+    "SCHEMAS",
+    "EXAMPLES",
+    "adapt_run_result_to_performance",
+    "LLMError",
+    "LLMProvider",
+    "load_json",
+    "load_json_optional",
+    "write_json",
+]

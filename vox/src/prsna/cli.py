@@ -23,23 +23,7 @@ class OutputMode:
     quiet: bool = False
 
 
-# Shared state via context
 _output = OutputMode()
-
-
-def version_callback(value: bool):
-    if value:
-        typer.echo(f"persona {__version__}")
-        raise typer.Exit()
-
-
-def json_callback(value: bool):
-    _output.json = value
-
-
-def quiet_callback(value: bool):
-    _output.quiet = value
-
 
 app = typer.Typer(
     name="persona",
@@ -51,17 +35,21 @@ app = typer.Typer(
 @app.callback()
 def main(
     version: Annotated[
-        bool, typer.Option("--version", "-V", callback=version_callback, is_eager=True)
+        bool, typer.Option("--version", "-V", is_eager=True)
     ] = False,
     json_output: Annotated[
-        bool, typer.Option("--json", callback=json_callback, help="Output as JSON")
+        bool, typer.Option("--json", help="Output as JSON")
     ] = False,
     quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", callback=quiet_callback, help="Minimal output")
+        bool, typer.Option("--quiet", "-q", help="Minimal output")
     ] = False,
 ):
     """Manage, compose, test, and export AI personas."""
-    pass
+    if version:
+        typer.echo(f"persona {__version__}")
+        raise typer.Exit()
+    _output.json = json_output
+    _output.quiet = quiet
 
 
 # Disable colors when not a TTY (for piping)
@@ -126,7 +114,10 @@ def init(
 @app.command()
 def create(
     description: Annotated[str, typer.Argument(help="Description of the persona to create")],
-    like: Annotated[str, typer.Option("--like", "-l", help="Real person to base on (uses Exa)")] = "",
+    like: Annotated[
+        str,
+        typer.Option("--like", "-l", help="Real person to base on (uses Exa)"),
+    ] = "",
     role: Annotated[str, typer.Option("--role", "-r", help="Job role to base on")] = "",
     name: Annotated[str, typer.Option("--name", "-n", help="Override generated name")] = "",
 ):
@@ -177,7 +168,10 @@ def create(
 
         path = get_persona_path(persona.name)
         if path.exists():
-            rprint(f"[yellow]Persona '{persona.name}' already exists. Use --name to specify different name.[/yellow]")
+            rprint(
+                f"[yellow]Persona '{persona.name}' already exists. "
+                "Use --name to specify different name.[/yellow]"
+            )
             raise typer.Exit(1)
 
         persona.save(path)
@@ -208,7 +202,10 @@ def list_personas():
     personas = [Persona.load(p) for p in paths]
 
     if _output.json:
-        data = [{"name": p.name, "description": p.description, "traits": p.traits} for p in personas]
+        data = [
+            {"name": p.name, "description": p.description, "traits": p.traits}
+            for p in personas
+        ]
         typer.echo(json.dumps(data, indent=2))
         return
 
@@ -472,33 +469,84 @@ def enrich(
 @app.command()
 def test(
     name: Annotated[str, typer.Argument(help="Persona name")],
-    samples: Annotated[int, typer.Option("--samples", "-n", help="Number of test samples")] = 5,
+    samples: Annotated[
+        int,
+        typer.Option("--samples", "-n", help="Number of generated test samples"),
+    ] = 5,
+    difficulty: Annotated[
+        str,
+        typer.Option("--difficulty", help="Generated eval tier: basic, mixed, or stress"),
+    ] = "mixed",
+    cases: Annotated[
+        str,
+        typer.Option("--cases", help="Path to custom eval cases JSON"),
+    ] = "",
+    save_report: Annotated[
+        bool,
+        typer.Option("--save-report", help="Persist the eval report under ~/.prsna/evals"),
+    ] = False,
 ):
-    """Test persona consistency with DSPy.
+    """Test persona consistency with structured eval cases.
 
-    Runs sample conversations and evaluates whether responses
-    match the persona's defined traits and voice.
+    Generated tiers are cumulative:
+    - basic: simple identity/value checks
+    - mixed: adds ambiguity and tradeoff cases
+    - stress: adds boundary and adversarial pressure
 
     Requires OPENAI_API_KEY environment variable.
     """
     import dspy
 
+    from prsna.eval_cases import load_eval_cases
+    from prsna.eval_store import save_eval_report
     from prsna.optimization import test_persona
 
     persona = load_persona(name)
+    custom_cases = load_eval_cases(cases) if cases else None
 
     # Configure DSPy
     lm = dspy.LM("openai/gpt-4o-mini")
     dspy.configure(lm=lm)
 
-    with console.status(f"[cyan]Testing {name} ({samples} samples)...[/cyan]"):
-        results = test_persona(persona, num_samples=samples)
+    case_count = len(custom_cases) if custom_cases is not None else samples
+    with console.status(f"[cyan]Testing {name} ({case_count} cases, {difficulty})...[/cyan]"):
+        results = test_persona(
+            persona,
+            num_samples=samples,
+            cases=custom_cases,
+            difficulty=difficulty,
+        )
 
-    # Display results
-    score_color = "green" if results["score"] > 0.7 else "yellow" if results["score"] > 0.4 else "red"
+    if save_report:
+        report_path = save_eval_report(name, results)
+        results = {**results, "report_path": str(report_path)}
+
+    if _output.json:
+        typer.echo(json.dumps(results, indent=2))
+        return
+
+    score_color = (
+        "green"
+        if results["score"] > 0.7
+        else "yellow"
+        if results["score"] > 0.4
+        else "red"
+    )
     rprint(f"\n[bold]Persona:[/bold] {results['persona']}")
     rprint(f"[bold]Score:[/bold] [{score_color}]{results['score']:.1%}[/{score_color}]")
     rprint(f"[bold]Passed:[/bold] {results['passed']}/{results['total']}")
+    rprint(f"[bold]Tier:[/bold] {results['difficulty']}")
+    rprint(f"[bold]Boundary pass rate:[/bold] {results['boundary_pass_rate']:.1%}")
+
+    if results.get("bucket_scores"):
+        rprint("\n[bold]Bucket scores:[/bold]")
+        for bucket, score in results["bucket_scores"].items():
+            rprint(f"  - {bucket}: {score:.1%}")
+
+    if results.get("failure_modes"):
+        rprint("\n[bold]Failure modes:[/bold]")
+        for issue in results["failure_modes"][:5]:
+            rprint(f"  - {issue}")
 
     if results["details"]:
         rprint("\n[bold]Sample responses:[/bold]")
@@ -506,6 +554,102 @@ def test(
             status = "[green]✓[/green]" if d["score"] > 0.5 else "[red]✗[/red]"
             rprint(f"  {status} {d['message'][:40]}...")
             rprint(f"     [dim]{d['response'][:60]}...[/dim]")
+
+    if results.get("report_path"):
+        rprint(f"\n[dim]Saved report:[/dim] {results['report_path']}")
+
+
+@app.command()
+def evals(
+    name: Annotated[str, typer.Argument(help="Persona name")],
+    latest: Annotated[
+        bool,
+        typer.Option(
+            "--latest",
+            help="Show the latest saved eval report instead of listing reports",
+        ),
+    ] = False,
+    compare: Annotated[
+        bool,
+        typer.Option(
+            "--compare",
+            help="Compare the latest two saved eval reports for this persona",
+        ),
+    ] = False,
+    limit: Annotated[
+        int,
+        typer.Option("--limit", help="Maximum number of saved reports to list"),
+    ] = 10,
+):
+    """Inspect saved eval reports for a persona."""
+    from prsna.eval_store import compare_latest_eval_reports, latest_eval_report, list_eval_reports
+
+    if compare:
+        comparison = compare_latest_eval_reports(name)
+        if comparison is None:
+            rprint(f"[yellow]Need at least two eval reports for '{name}' to compare[/yellow]")
+            raise typer.Exit(1)
+        if _output.json:
+            typer.echo(json.dumps(comparison, indent=2))
+            return
+
+        rprint(f"[bold]Latest eval comparison for {name}[/bold]")
+        for field, delta in comparison["delta"].items():
+            if delta is None:
+                continue
+            sign = "+" if delta >= 0 else ""
+            rprint(f"[dim]{field} Δ:[/dim] {sign}{delta:.1%}")
+        added = comparison["failure_modes"]["added"]
+        removed = comparison["failure_modes"]["removed"]
+        if added:
+            rprint("[bold]New failure modes:[/bold]")
+            for issue in added:
+                rprint(f"  + {issue}")
+        if removed:
+            rprint("[bold]Removed failure modes:[/bold]")
+            for issue in removed:
+                rprint(f"  - {issue}")
+        return
+
+    if latest:
+        report = latest_eval_report(name)
+        if report is None:
+            rprint(f"[yellow]No eval reports found for '{name}'[/yellow]")
+            raise typer.Exit(1)
+        if _output.json:
+            typer.echo(json.dumps(report, indent=2))
+            return
+
+        rprint(f"[bold]Latest eval for {name}[/bold]")
+        rprint(f"[dim]Score:[/dim] {report.get('score', 0):.1%}")
+        rprint(f"[dim]Tier:[/dim] {report.get('difficulty', 'unknown')}")
+        if report.get("report_path"):
+            rprint(f"[dim]Path:[/dim] {report['report_path']}")
+        if report.get("failure_modes"):
+            rprint("[bold]Failure modes:[/bold]")
+            for issue in report["failure_modes"][:5]:
+                rprint(f"  - {issue}")
+        return
+
+    reports = list_eval_reports(name, limit=limit)
+    payload = {"persona": name, "count": len(reports), "reports": reports}
+    if _output.json:
+        typer.echo(json.dumps(payload, indent=2))
+        return
+
+    if not reports:
+        rprint(f"[yellow]No eval reports found for '{name}'[/yellow]")
+        return
+
+    rprint(f"[bold]Saved eval reports for {name}[/bold]")
+    for report in reports:
+        score = report.get("score")
+        score_text = f"{score:.1%}" if isinstance(score, (int, float)) else "n/a"
+        rprint(
+            f"  - {report.get('saved_at', 'unknown time')} | "
+            f"{report.get('difficulty', 'unknown')} | {score_text}"
+        )
+        rprint(f"    {report['path']}")
 
 
 @app.command()
@@ -538,7 +682,10 @@ def optimize(
         )
 
     if len(trainset) < 3:
-        rprint("[yellow]Warning: Few examples in persona. Add more for better optimization.[/yellow]")
+        rprint(
+            "[yellow]Warning: Few examples in persona. "
+            "Add more for better optimization.[/yellow]"
+        )
         # Add generic test messages
         for msg in ["Hello", "Tell me about yourself", "What do you think?"]:
             trainset.append(
@@ -580,7 +727,10 @@ def learn(
     state = LearningState.load(name)
 
     if len(state.interactions) < 3:
-        rprint(f"[yellow]Need at least 3 logged interactions to learn. Current: {len(state.interactions)}[/yellow]")
+        rprint(
+            "[yellow]Need at least 3 logged interactions to learn. "
+            f"Current: {len(state.interactions)}[/yellow]"
+        )
         rprint("[dim]Use 'persona chat' to have conversations (they're logged automatically)[/dim]")
         raise typer.Exit(1)
 

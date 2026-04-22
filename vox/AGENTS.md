@@ -31,6 +31,14 @@ User Input: "skeptical investigative journalist"
 └─────────────────────────────────────┘
      │
      ▼
+┌─────────────────────────────────────┐
+│  PERSONA_REPAIR_PROMPT              │
+│  - Fix contradictions               │
+│  - Tighten generic voice patterns   │
+│  - Improve testability              │
+└─────────────────────────────────────┘
+     │
+     ▼
 Complete Persona YAML
 ```
 
@@ -84,25 +92,27 @@ class PersonaConsistency(dspy.Signature):
 **Flow:**
 
 ```
-Test Messages (10 samples)
+Structured Eval Cases
+(basic / mixed / stress or custom JSON)
      │
      ▼
 ┌─────────────────────────────────────┐
 │  PersonaChat Module                 │
-│  - Generate response for each       │
-│  - Chain of Thought reasoning       │
+│  - Generate response per case       │
+│  - Use explicit bucket coverage     │
 └─────────────────────────────────────┘
      │
      ▼
 ┌─────────────────────────────────────┐
-│  PersonaConsistency Evaluator       │
-│  - Score each response              │
-│  - Check trait alignment            │
-│  - Check voice match                │
+│  Drift Evaluator                    │
+│  - Convert response into drift      │
+│    and dimension scores             │
+│  - Aggregate bucket + difficulty    │
+│    scores and boundary pass rate    │
 └─────────────────────────────────────┘
      │
      ▼
-Fidelity Score: 73%
+Eval report (+ optional ~/.prsna/evals save)
 ```
 
 ## Agent: Optimize (GEPA)

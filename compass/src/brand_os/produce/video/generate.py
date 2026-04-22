@@ -1,4 +1,8 @@
-"""Video generation orchestration."""
+"""Video generation surface.
+
+The CLI entrypoint remains in place, but this repo build does not yet ship a
+video runtime.
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,28 +15,12 @@ def generate_video(
     duration: int = 30,
     output_path: Path | None = None,
 ) -> dict[str, Any]:
-    """Generate a video.
-
-    Args:
-        brief: Video brief
-        brand: Brand name
-        duration: Duration in seconds
-        output_path: Output path
-
-    Returns:
-        Generation result
-
-    Note: Video generation is experimental and requires optional deps.
-    """
-    # This is a placeholder - full implementation would use:
-    # - Replicate/Kling for video generation
-    # - Cartesia for TTS
-    # - FFmpeg for conforming
-
+    """Return an explicit unsupported result for the unshipped video runtime."""
     return {
         "success": False,
-        "error": "Video generation not yet implemented",
+        "error": "Video generation is not implemented in this build.",
         "brief": brief,
+        "brand": brand,
         "duration": duration,
-        "note": "Install brand-os[video] and implement providers",
+        "output_path": str(output_path) if output_path else None,
     }

@@ -8,7 +8,7 @@ from pathlib import Path
 
 def _load_adapter():
     adapter_path = (
-        Path(__file__).resolve().parents[3] / "adapters" / "run_result_to_performance_v1.py"
+        Path(__file__).resolve().parents[2] / "adapters" / "run_result_to_performance_v1.py"
     )
     spec = importlib.util.spec_from_file_location(
         "agentcy_protocols_run_result_to_performance",
@@ -21,6 +21,6 @@ def _load_adapter():
     return module
 
 
-adapt_run_result_to_performance = _load_adapter().adapt_canonical_run_result_to_performance
+adapt_run_result_to_performance = _load_adapter().adapt_run_result_to_performance
 
 __all__ = ["adapt_run_result_to_performance"]

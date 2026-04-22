@@ -1,5 +1,9 @@
 # Solutions Log
 
+## 2026-04-15 — Protocol seam CI now installs loom runtime before Python tests
+- Problem: the canonical `brief.v1 -> run_result.v1` protocol test invokes `node bin/loom.js`, so clean CI jobs that only ran `uv sync --group dev` failed before the loom runtime dependencies were installed.
+- Fix: the root CI workflow now installs `loom/runtime` with `pnpm install --frozen-lockfile` in the Python/protocol job, and the root docs now note that clean-checkout protocol tests require the loom runtime install.
+
 ## 2026-04-15 — Packaged Loom launcher now resolves `tsx` from the runtime root
 - Problem: `node bin/loom.js help --json` could fail from the monorepo root because the launcher inherited the caller cwd and Node could not resolve the runtime-local `tsx` dependency.
 - Fix: `bin/loom.js` now spawns Node with `cwd` pinned to `runtime/`, so packaged help and doctor-style probes resolve `tsx` consistently.

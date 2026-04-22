@@ -20,7 +20,9 @@ from .core.task_manager import TaskManager, TaskStatus
 from .core.workbench_session import WorkbenchSession
 from .resources.reports import ReportStore
 from .run_artifacts import RunStore
+from .run_eval import build_completed_run_eval
 from .services.graph_builder import GraphBuilderService
+from .smoke_mode import build_smoke_outputs
 from .utils.oasis_llm import get_simulation_runtime_preflight, require_simulation_runtime
 from .services.graph_db import GraphDatabase
 from .services.simulation_manager import SimulationManager
@@ -153,6 +155,12 @@ def _record_if_copied(store: RunStore, run_id: str, key: str, source_path: str, 
         store.record_artifact(run_id, key, rel_path)
 
 
+def _record_if_exists(store: RunStore, run_id: str, key: str, rel_path: str) -> None:
+    absolute_path = os.path.join(store.run_dir(run_id), rel_path)
+    if os.path.exists(absolute_path):
+        store.record_artifact(run_id, key, rel_path)
+
+
 def _resolve_artifact_paths(store: RunStore, manifest: Dict[str, Any]) -> Dict[str, str]:
     run_dir = store.run_dir(manifest["run_id"])
     resolved: Dict[str, str] = {}
@@ -161,6 +169,17 @@ def _resolve_artifact_paths(store: RunStore, manifest: Dict[str, Any]) -> Dict[s
         if os.path.exists(absolute_path):
             resolved[key] = absolute_path
     return resolved
+
+
+def _ensure_run_eval_artifact(store: RunStore, manifest: Dict[str, Any]) -> Dict[str, Any]:
+    if manifest.get("status") != "completed":
+        return manifest
+    if manifest.get("artifacts", {}).get("run_eval"):
+        return manifest
+
+    payload = build_completed_run_eval(manifest, store.run_dir(manifest["run_id"]))
+    store.write_json(manifest["run_id"], "eval/run_eval.v1.json", payload)
+    return store.record_artifact(manifest["run_id"], "run_eval", "eval/run_eval.v1.json")
 
 
 def _ensure_forecast_v1_artifact(store: RunStore, manifest: Dict[str, Any]) -> Dict[str, Any]:
@@ -234,6 +253,7 @@ def _refresh_run_manifest(store: RunStore, run_id: str) -> Dict[str, Any]:
 
     if changed:
         manifest = store.save(manifest)
+    manifest = _ensure_run_eval_artifact(store, manifest)
     return _ensure_forecast_v1_artifact(store, manifest)
 
 
@@ -274,6 +294,8 @@ def _collect_run_outputs(
     if report_markdown:
         store.write_text(run_id, "report/report.md", report_markdown)
         store.record_artifact(run_id, "report_markdown", "report/report.md")
+
+    _record_if_exists(store, run_id, "llm_telemetry", "logs/llm_telemetry.jsonl")
 
     summary = {
         "run_id": manifest["run_id"],
@@ -335,11 +357,16 @@ def _run_pipeline(args: argparse.Namespace) -> Dict[str, Any]:
         store.write_json(run_id, "input/brief_lineage.json", imported_brief.frozen_input)
         store.record_artifact(run_id, "brief_lineage", "input/brief_lineage.json")
 
+    telemetry_path = os.path.join(store.run_dir(run_id), "logs", "llm_telemetry.jsonl")
+    previous_telemetry_path = os.environ.get("AGENTCY_LLM_TELEMETRY_FILE")
+    os.environ["AGENTCY_LLM_TELEMETRY_FILE"] = telemetry_path
+
     session = WorkbenchSession.open(metadata={"entrypoint": "cli.run", "run_id": run_id})
     current_step = "simulation"
 
     try:
-        require_simulation_runtime()
+        if not args.smoke:
+            require_simulation_runtime()
         current_step = "ontology"
         # --- ontology ---
         display.start_step("ontology")
@@ -429,52 +456,88 @@ def _run_pipeline(args: argparse.Namespace) -> Dict[str, Any]:
         # --- simulation ---
         current_step = "simulation"
         display.start_step("simulation")
-        session.start_simulation_run(
-            simulation_id=simulation_id,
-            platform=args.platform,
-            max_rounds=args.max_rounds,
-            enable_graph_memory_update=False,
-        )
-        _wait_for_simulation(
-            simulation_id,
-            on_update=lambda state: (
-                store.update(run_id, status="simulation_running", task_progress=state.to_dict().get("progress_percent", 0), task_message=f"{state.current_round}/{state.total_rounds} rounds"),
-                display.update_step("simulation", f"round {state.current_round}/{state.total_rounds}"),
-            ),
-        )
-
-        timeline = SimulationRunner.get_timeline(simulation_id)
-        agent_stats = SimulationRunner.get_agent_stats(simulation_id)
-        actions = SimulationRunner.get_all_actions(simulation_id)
-        total_actions = sum(item.get("total_actions", 0) for item in timeline)
-        display.complete_step("simulation", f"{len(timeline)} rounds, {total_actions} actions")
-        store.update(run_id, status="simulation_completed", task_progress=100, task_message="Simulation completed")
-
-        # --- report ---
-        current_step = "report"
-        display.start_step("report")
         report_payload = None
         report_markdown = ""
-        report_store = ReportStore()
+        report_id = None
 
-        report_result = session.start_report_generation(simulation_id=simulation_id)
-        report_id = report_result.get("report_id")
-        if report_result.get("task_id"):
-            store.update(run_id, report_id=report_id, report_task_id=report_result["task_id"], status="report_generating")
-            report_task = _wait_for_task(
-                report_result["task_id"],
-                on_update=lambda task: (
-                    store.update(run_id, status="report_generating", task_progress=task.progress, task_message=task.message),
-                    display.update_step("report", task.message or ""),
+        if args.smoke:
+            smoke_outputs = build_smoke_outputs(
+                sim_dir,
+                run_id=run_id,
+                simulation_id=simulation_id,
+                graph_id=graph_id,
+                requirement=requirement,
+                platform=args.platform,
+                max_rounds=args.max_rounds,
+            )
+            timeline = smoke_outputs["timeline"]
+            agent_stats = smoke_outputs["agent_stats"]
+            actions = smoke_outputs["actions"]
+            report_payload = smoke_outputs["report_payload"]
+            report_markdown = smoke_outputs["report_markdown"]
+            report_id = report_payload["report_id"]
+            total_actions = sum(item.get("total_actions", 0) for item in timeline)
+            display.complete_step(
+                "simulation",
+                f"smoke mode — {len(timeline)} rounds, {total_actions} actions",
+            )
+            store.update(
+                run_id,
+                status="simulation_completed",
+                task_progress=100,
+                task_message="Smoke simulation completed",
+                smoke_mode=True,
+            )
+
+            current_step = "report"
+            display.start_step("report")
+            display.complete_step("report", "smoke report")
+        else:
+            session.start_simulation_run(
+                simulation_id=simulation_id,
+                platform=args.platform,
+                max_rounds=args.max_rounds,
+                enable_graph_memory_update=False,
+                wait_for_commands=False,
+            )
+            _wait_for_simulation(
+                simulation_id,
+                on_update=lambda state: (
+                    store.update(run_id, status="simulation_running", task_progress=state.to_dict().get("progress_percent", 0), task_message=f"{state.current_round}/{state.total_rounds} rounds"),
+                    display.update_step("simulation", f"round {state.current_round}/{state.total_rounds}"),
                 ),
             )
-            report_id = (report_task.result or {}).get("report_id", report_id)
-        if report_id:
-            report = report_store.get(report_id)
-            if report is not None:
-                report_payload = report.to_dict()
-                report_markdown = report.markdown_content
-        display.complete_step("report", "done")
+
+            timeline = SimulationRunner.get_timeline(simulation_id)
+            agent_stats = SimulationRunner.get_agent_stats(simulation_id)
+            actions = SimulationRunner.get_all_actions(simulation_id)
+            total_actions = sum(item.get("total_actions", 0) for item in timeline)
+            display.complete_step("simulation", f"{len(timeline)} rounds, {total_actions} actions")
+            store.update(run_id, status="simulation_completed", task_progress=100, task_message="Simulation completed")
+
+            # --- report ---
+            current_step = "report"
+            display.start_step("report")
+            report_store = ReportStore()
+
+            report_result = session.start_report_generation(simulation_id=simulation_id)
+            report_id = report_result.get("report_id")
+            if report_result.get("task_id"):
+                store.update(run_id, report_id=report_id, report_task_id=report_result["task_id"], status="report_generating")
+                report_task = _wait_for_task(
+                    report_result["task_id"],
+                    on_update=lambda task: (
+                        store.update(run_id, status="report_generating", task_progress=task.progress, task_message=task.message),
+                        display.update_step("report", task.message or ""),
+                    ),
+                )
+                report_id = (report_task.result or {}).get("report_id", report_id)
+            if report_id:
+                report = report_store.get(report_id)
+                if report is not None:
+                    report_payload = report.to_dict()
+                    report_markdown = report.markdown_content
+            display.complete_step("report", "done")
 
         # --- visuals ---
         current_step = "visuals"
@@ -491,6 +554,7 @@ def _run_pipeline(args: argparse.Namespace) -> Dict[str, Any]:
             report_payload=report_payload,
             report_markdown=report_markdown,
         )
+        final_manifest = _ensure_run_eval_artifact(store, final_manifest)
         final_manifest = _ensure_forecast_v1_artifact(store, final_manifest)
         visual_keys = {"swarm_overview", "cluster_map", "timeline", "platform_split"}
         n_visuals = sum(1 for k in final_manifest.get("artifacts", {}) if k in visual_keys)
@@ -503,6 +567,11 @@ def _run_pipeline(args: argparse.Namespace) -> Dict[str, Any]:
         display.finish()
         store.update(run_id, status="failed", error=str(exc), task_message=str(exc))
         raise
+    finally:
+        if previous_telemetry_path is None:
+            os.environ.pop("AGENTCY_LLM_TELEMETRY_FILE", None)
+        else:
+            os.environ["AGENTCY_LLM_TELEMETRY_FILE"] = previous_telemetry_path
 
 
 def _handle_command(args: argparse.Namespace) -> Dict[str, Any]:
@@ -558,6 +627,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--brief", help="Canonical brief.v1 JSON input; derives the simulation requirement when supplied")
     run_parser.add_argument("--platform", choices=("parallel", "twitter", "reddit"), default="parallel")
     run_parser.add_argument("--max-rounds", type=int)
+    run_parser.add_argument("--smoke", action="store_true", help="Skip the live OASIS runtime and emit deterministic smoke-mode artifacts")
     run_parser.add_argument("--wait", action="store_true", help="Accepted for consistency; end-to-end run waits by default")
     run_parser.add_argument("--output-dir")
     run_parser.add_argument("--json", action="store_true")

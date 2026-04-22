@@ -39,6 +39,7 @@ class Config:
     DEBUG = _get_bool_env("DEBUG", False)
 
     LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "claude-cli").strip().lower()
+    CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "").strip() or None
 
     DATA_DIR = _resolve_path(os.path.join(os.path.dirname(__file__), "../data/graphs"), "DATA_DIR")
 

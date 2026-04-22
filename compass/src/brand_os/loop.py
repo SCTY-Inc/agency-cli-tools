@@ -16,7 +16,7 @@ import asyncio
 import signal
 import sys
 from datetime import datetime, timedelta
-from typing import Any, Callable
+from typing import Any, Callable, NoReturn
 
 from pydantic import BaseModel, Field
 
@@ -89,6 +89,10 @@ class LoopEvent(BaseModel):
     event_type: str
     brand: str | None = None
     details: dict[str, Any] = Field(default_factory=dict)
+
+
+class ManualExecutionRequired(RuntimeError):
+    """Raised when a decision requires operator action instead of automation."""
 
 
 class AutonomousLoop:
@@ -345,10 +349,11 @@ class AutonomousLoop:
 
             if evaluation.verdict == PolicyVerdict.ALLOW:
                 if executed < self.config.max_executions_per_cycle:
-                    await self._execute_decision(decision, evaluation)
-                    executed += 1
+                    if await self._execute_decision(decision, evaluation):
+                        executed += 1
+                    else:
+                        escalated += 1
                 else:
-                    # Rate limit hit, escalate instead
                     await self._escalate_decision(decision, evaluation, "execution_rate_limit")
                     escalated += 1
 
@@ -374,20 +379,22 @@ class AutonomousLoop:
         self,
         decision: Decision,
         evaluation: PolicyEvaluation,
-    ) -> None:
-        """Execute an approved decision."""
+    ) -> bool:
+        """Execute an approved decision.
+
+        Returns True when the decision completed autonomously and False when it
+        had to be escalated for operator handling.
+        """
         from brand_os.actions.write import WriteAction
 
         try:
+            outcome = await self._execute_by_type(decision)
+
             decision.status = DecisionStatus.APPROVED
             decision.reviewed_at = utc_now()
             decision.reviewer = "policy_engine"
             decision.review_reason = f"Auto-approved by rule: {evaluation.rule_matched}"
 
-            # Execute based on decision type
-            outcome = await self._execute_by_type(decision)
-
-            # Always write output for audit trail
             write_action = WriteAction()
             analysis = getattr(self, '_last_analysis', None)
             write_result = write_action.execute(decision, analysis)
@@ -403,28 +410,31 @@ class AutonomousLoop:
                 decision_id=decision.id,
                 decision_type=decision.type.value,
             )
+            return True
 
-        except Exception as e:
+        except ManualExecutionRequired as exc:
+            decision.reviewer = None
+            decision.reviewed_at = None
+            await self._escalate_decision(decision, evaluation, str(exc))
+            return False
+
+        except Exception as exc:
             decision.status = DecisionStatus.FAILED
-            decision.error = str(e)
+            decision.error = str(exc)
             self._emit(
                 "decision_failed",
                 brand=decision.brand,
                 decision_id=decision.id,
-                error=str(e),
+                error=str(exc),
             )
+            return False
 
         finally:
             self.decision_log.update(decision)
-            # Log outcome for learning
             log_outcome(decision)
 
     async def _execute_by_type(self, decision: Decision) -> dict[str, Any]:
-        """Execute decision based on its type.
-
-        TODO: Implement execution handlers for each decision type.
-        """
-        # Placeholder implementations
+        """Execute a decision via its registered handler."""
         handlers = {
             DecisionType.CONTENT_PUBLISH: self._execute_content_publish,
             DecisionType.CONTENT_SCHEDULE: self._execute_content_schedule,
@@ -435,40 +445,33 @@ class AutonomousLoop:
         }
 
         handler = handlers.get(decision.type)
-        if handler:
-            return await handler(decision)
+        if not handler:
+            self._manual_execution_required(decision)
 
-        return {"status": "no_handler", "type": decision.type.value}
+        return await handler(decision)
+
+    def _manual_execution_required(self, decision: Decision) -> NoReturn:
+        raise ManualExecutionRequired(
+            f"Autonomous {decision.type.value} execution is not implemented"
+        )
 
     async def _execute_content_publish(self, decision: Decision) -> dict[str, Any]:
-        """Publish content to configured platforms."""
-        # TODO: Implement actual publishing
-        return {"status": "published", "platforms": []}
+        self._manual_execution_required(decision)
 
     async def _execute_content_schedule(self, decision: Decision) -> dict[str, Any]:
-        """Schedule content for future publishing."""
-        # TODO: Implement scheduling
-        return {"status": "scheduled", "scheduled_at": None}
+        self._manual_execution_required(decision)
 
     async def _execute_signal_action(self, decision: Decision) -> dict[str, Any]:
-        """Execute action based on signal analysis."""
-        # TODO: Implement signal actions
-        return {"status": "processed"}
+        self._manual_execution_required(decision)
 
     async def _execute_threat_response(self, decision: Decision) -> dict[str, Any]:
-        """Execute threat response."""
-        # TODO: Implement threat response
-        return {"status": "responded"}
+        self._manual_execution_required(decision)
 
     async def _execute_campaign_adjustment(self, decision: Decision) -> dict[str, Any]:
-        """Adjust campaign parameters."""
-        # TODO: Implement campaign adjustment
-        return {"status": "adjusted"}
+        self._manual_execution_required(decision)
 
     async def _execute_competitor_response(self, decision: Decision) -> dict[str, Any]:
-        """Execute competitor response."""
-        # TODO: Implement competitor response
-        return {"status": "responded"}
+        self._manual_execution_required(decision)
 
     async def _escalate_decision(
         self,
@@ -508,22 +511,13 @@ class AutonomousLoop:
         decision: Decision,
         evaluation: PolicyEvaluation,
     ) -> None:
-        """Send notification for escalated decision.
-
-        TODO: Implement actual notification channels (Slack, email, etc.)
-        """
+        """Send notifications for channels that are wired in this runtime."""
+        _ = (decision, evaluation)
         policy = self.policy_engine.load_policy(decision.brand)
 
         for channel in policy.notify_channels:
             if channel == "cli":
-                # CLI notifications are passive (shown on next command)
-                pass
-            elif channel == "slack":
-                # TODO: Implement Slack notification
-                pass
-            elif channel == "email":
-                # TODO: Implement email notification
-                pass
+                continue
 
 
 async def run_loop(config: LoopConfig | None = None) -> None:

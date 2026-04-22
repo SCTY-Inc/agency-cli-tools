@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator
+
+from agentcy_protocols.utils import load_json
 
 ROOT = Path(__file__).resolve().parents[2]
 PROTOCOLS_DIR = ROOT / "protocols"
@@ -42,12 +43,8 @@ class AdapterValidationError(ValueError):
     pass
 
 
-def _load_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text())
-
-
 def _validator(path: Path) -> Draft202012Validator:
-    return Draft202012Validator(_load_json(path))
+    return Draft202012Validator(load_json(path))
 
 
 def _validate_run_result(run_result: dict[str, Any]) -> None:
@@ -182,7 +179,7 @@ def adapt_from_paths(
     sidecar_path: Path,
     run_result_path: Path = CANONICAL_RUN_RESULT_PATH,
 ) -> dict[str, Any]:
-    return adapt_run_result_to_performance(_load_json(run_result_path), _load_json(sidecar_path))
+    return adapt_run_result_to_performance(load_json(run_result_path), load_json(sidecar_path))
 
 
 def main() -> int:

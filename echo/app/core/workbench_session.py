@@ -191,6 +191,7 @@ class WorkbenchSession:
         max_rounds: Optional[int] = None,
         enable_graph_memory_update: bool = False,
         force: bool = False,
+        wait_for_commands: bool = True,
     ) -> Dict[str, Any]:
         result = self.run_simulation_tool.start(
             simulation_id=simulation_id,
@@ -198,6 +199,7 @@ class WorkbenchSession:
             max_rounds=max_rounds,
             enable_graph_memory_update=enable_graph_memory_update,
             force=force,
+            wait_for_commands=wait_for_commands,
             session_id=self.session_id,
         )
         self.state = self.session_manager.get(result["session_id"]) or self.state

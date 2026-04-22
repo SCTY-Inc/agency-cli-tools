@@ -21,392 +21,26 @@ from ..config import Config
 from ..utils.llm_client import LLMClient
 from ..utils.logger import get_logger
 from .graph_tools import GraphToolsService
+from .report_language import _detect_language
+from .report_logger import ReportConsoleLogger, ReportLogger
 
 logger = get_logger('mirofish.report_agent')
 
-
-def _detect_language(text: str) -> str:
-    """
-    Detect language based on CJK character percentage.
-
-    Args:
-        text: Text to analyze
-
-    Returns:
-        "zh" if >5% of non-whitespace characters are CJK, else "en"
-    """
-    if not text:
-        return "en"
-
-    # Count CJK characters
-    cjk_count = 0
-    total_count = 0
-
-    for char in text:
-        if not char.isspace():
-            total_count += 1
-            # Check if character is in CJK ranges
-            if "\u4e00" <= char <= "\u9fff" or "\u3400" <= char <= "\u4dbf":
-                cjk_count += 1
-
-    if total_count == 0:
-        return "en"
-
-    cjk_ratio = cjk_count / total_count
-    return "zh" if cjk_ratio > 0.05 else "en"
+REPORT_STORAGE_ERRORS = (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError)
+OUTLINE_GENERATION_ERRORS = (
+    OSError,
+    AttributeError,
+    KeyError,
+    TypeError,
+    ValueError,
+    json.JSONDecodeError,
+    RuntimeError,
+)
+OPTIONAL_INTERVIEW_ERRORS = (OSError, RuntimeError, TimeoutError, TypeError, ValueError)
 
 
-class ReportLogger:
-    """
-    Report Agent Detailed Logger
-
-    Generates an agent_log.jsonl file in the report folder, recording each step in detail.
-    Each line is a complete JSON object containing timestamp, action type, detailed content, etc.
-    """
-
-    def __init__(self, report_id: str):
-        """
-        Initialize the logger
-
-        Args:
-            report_id: Report ID, used to determine the log file path
-        """
-        self.report_id = report_id
-        self.log_file_path = os.path.join(
-            Config.UPLOAD_FOLDER, 'reports', report_id, 'agent_log.jsonl'
-        )
-        self.start_time = datetime.now()
-        self._ensure_log_file()
-
-    def _ensure_log_file(self):
-        """Ensure the log file directory exists"""
-        log_dir = os.path.dirname(self.log_file_path)
-        os.makedirs(log_dir, exist_ok=True)
-
-    def _get_elapsed_time(self) -> float:
-        """Get elapsed time from start to now (in seconds)"""
-        return (datetime.now() - self.start_time).total_seconds()
-
-    def log(
-        self,
-        action: str,
-        stage: str,
-        details: Dict[str, Any],
-        section_title: str = None,
-        section_index: int = None
-    ):
-        """
-        Record a log entry
-
-        Args:
-            action: Action type, e.g. 'start', 'tool_call', 'llm_response', 'section_complete', etc.
-            stage: Current stage, e.g. 'planning', 'generating', 'completed'
-            details: Detailed content dictionary, not truncated
-            section_title: Current section title (optional)
-            section_index: Current section index (optional)
-        """
-        log_entry = {
-            "timestamp": datetime.now().isoformat(),
-            "elapsed_seconds": round(self._get_elapsed_time(), 2),
-            "report_id": self.report_id,
-            "action": action,
-            "stage": stage,
-            "section_title": section_title,
-            "section_index": section_index,
-            "details": details
-        }
-
-        # Append to JSONL file
-        with open(self.log_file_path, 'a', encoding='utf-8') as f:
-            f.write(json.dumps(log_entry, ensure_ascii=False) + '\n')
-
-    def log_start(self, simulation_id: str, graph_id: str, simulation_requirement: str):
-        """Record report generation start"""
-        self.log(
-            action="report_start",
-            stage="pending",
-            details={
-                "simulation_id": simulation_id,
-                "graph_id": graph_id,
-                "simulation_requirement": simulation_requirement,
-                "message": "Report generation task started"
-            }
-        )
-
-    def log_planning_start(self):
-        """Record outline planning start"""
-        self.log(
-            action="planning_start",
-            stage="planning",
-            details={"message": "Starting report outline planning"}
-        )
-
-    def log_planning_context(self, context: Dict[str, Any]):
-        """Record context information obtained during planning"""
-        self.log(
-            action="planning_context",
-            stage="planning",
-            details={
-                "message": "Retrieved simulation context information",
-                "context": context
-            }
-        )
-
-    def log_planning_complete(self, outline_dict: Dict[str, Any]):
-        """Record outline planning completion"""
-        self.log(
-            action="planning_complete",
-            stage="planning",
-            details={
-                "message": "Outline planning completed",
-                "outline": outline_dict
-            }
-        )
-
-    def log_section_start(self, section_title: str, section_index: int):
-        """Record section generation start"""
-        self.log(
-            action="section_start",
-            stage="generating",
-            section_title=section_title,
-            section_index=section_index,
-            details={"message": f"Starting section generation: {section_title}"}
-        )
-
-    def log_react_thought(self, section_title: str, section_index: int, iteration: int, thought: str):
-        """Record ReACT thinking process"""
-        self.log(
-            action="react_thought",
-            stage="generating",
-            section_title=section_title,
-            section_index=section_index,
-            details={
-                "iteration": iteration,
-                "thought": thought,
-                "message": f"ReACT iteration {iteration} thinking"
-            }
-        )
-
-    def log_tool_call(
-        self,
-        section_title: str,
-        section_index: int,
-        tool_name: str,
-        parameters: Dict[str, Any],
-        iteration: int
-    ):
-        """Record tool invocation"""
-        self.log(
-            action="tool_call",
-            stage="generating",
-            section_title=section_title,
-            section_index=section_index,
-            details={
-                "iteration": iteration,
-                "tool_name": tool_name,
-                "parameters": parameters,
-                "message": f"Invoking tool: {tool_name}"
-            }
-        )
-
-    def log_tool_result(
-        self,
-        section_title: str,
-        section_index: int,
-        tool_name: str,
-        result: str,
-        iteration: int
-    ):
-        """Record tool invocation result (full content, not truncated)"""
-        self.log(
-            action="tool_result",
-            stage="generating",
-            section_title=section_title,
-            section_index=section_index,
-            details={
-                "iteration": iteration,
-                "tool_name": tool_name,
-                "result": result,  # Full result, not truncated
-                "result_length": len(result),
-                "message": f"Tool {tool_name} returned result"
-            }
-        )
-
-    def log_llm_response(
-        self,
-        section_title: str,
-        section_index: int,
-        response: str,
-        iteration: int,
-        has_tool_calls: bool,
-        has_final_answer: bool
-    ):
-        """Record LLM response (full content, not truncated)"""
-        self.log(
-            action="llm_response",
-            stage="generating",
-            section_title=section_title,
-            section_index=section_index,
-            details={
-                "iteration": iteration,
-                "response": response,  # Full response, not truncated
-                "response_length": len(response),
-                "has_tool_calls": has_tool_calls,
-                "has_final_answer": has_final_answer,
-                "message": f"LLM response (tool calls: {has_tool_calls}, final answer: {has_final_answer})"
-            }
-        )
-
-    def log_section_content(
-        self,
-        section_title: str,
-        section_index: int,
-        content: str,
-        tool_calls_count: int
-    ):
-        """Record section content generation completion (content only, does not indicate full section completion)"""
-        self.log(
-            action="section_content",
-            stage="generating",
-            section_title=section_title,
-            section_index=section_index,
-            details={
-                "content": content,  # Full content, not truncated
-                "content_length": len(content),
-                "tool_calls_count": tool_calls_count,
-                "message": f"Section {section_title} content generation completed"
-            }
-        )
-
-    def log_section_full_complete(
-        self,
-        section_title: str,
-        section_index: int,
-        full_content: str
-    ):
-        """
-        Record section generation completion
-
-        The frontend should monitor this log to determine if a section is truly complete and retrieve full content
-        """
-        self.log(
-            action="section_complete",
-            stage="generating",
-            section_title=section_title,
-            section_index=section_index,
-            details={
-                "content": full_content,
-                "content_length": len(full_content),
-                "message": f"Section {section_title} generation completed"
-            }
-        )
-
-    def log_report_complete(self, total_sections: int, total_time_seconds: float):
-        """Record report generation completion"""
-        self.log(
-            action="report_complete",
-            stage="completed",
-            details={
-                "total_sections": total_sections,
-                "total_time_seconds": round(total_time_seconds, 2),
-                "message": "Report generation completed"
-            }
-        )
-
-    def log_error(self, error_message: str, stage: str, section_title: str = None):
-        """Record error"""
-        self.log(
-            action="error",
-            stage=stage,
-            section_title=section_title,
-            section_index=None,
-            details={
-                "error": error_message,
-                "message": f"Error occurred: {error_message}"
-            }
-        )
-
-
-class ReportConsoleLogger:
-    """
-    Report Agent Console Logger
-
-    Writes console-style logs (INFO, WARNING, etc.) to a console_log.txt file in the report folder.
-    These logs differ from agent_log.jsonl in that they are plain text console output.
-    """
-
-    def __init__(self, report_id: str):
-        """
-        Initialize the console logger
-
-        Args:
-            report_id: Report ID, used to determine the log file path
-        """
-        self.report_id = report_id
-        self.log_file_path = os.path.join(
-            Config.UPLOAD_FOLDER, 'reports', report_id, 'console_log.txt'
-        )
-        self._ensure_log_file()
-        self._file_handler = None
-        self._setup_file_handler()
-
-    def _ensure_log_file(self):
-        """Ensure the log file directory exists"""
-        log_dir = os.path.dirname(self.log_file_path)
-        os.makedirs(log_dir, exist_ok=True)
-
-    def _setup_file_handler(self):
-        """Set up file handler to write logs to file simultaneously"""
-        import logging
-
-        # Create file handler
-        self._file_handler = logging.FileHandler(
-            self.log_file_path,
-            mode='a',
-            encoding='utf-8'
-        )
-        self._file_handler.setLevel(logging.INFO)
-
-        # Use the same concise format as the console
-        formatter = logging.Formatter(
-            '[%(asctime)s] %(levelname)s: %(message)s',
-            datefmt='%H:%M:%S'
-        )
-        self._file_handler.setFormatter(formatter)
-
-        # Attach to report_agent related loggers
-        loggers_to_attach = [
-            'mirofish.report_agent',
-            'mirofish.graph_tools',
-        ]
-
-        for logger_name in loggers_to_attach:
-            target_logger = logging.getLogger(logger_name)
-            # Avoid duplicate additions
-            if self._file_handler not in target_logger.handlers:
-                target_logger.addHandler(self._file_handler)
-
-    def close(self):
-        """Close the file handler and remove it from loggers"""
-        import logging
-
-        if self._file_handler:
-            loggers_to_detach = [
-                'mirofish.report_agent',
-                'mirofish.graph_tools',
-            ]
-
-            for logger_name in loggers_to_detach:
-                target_logger = logging.getLogger(logger_name)
-                if self._file_handler in target_logger.handlers:
-                    target_logger.removeHandler(self._file_handler)
-
-            self._file_handler.close()
-            self._file_handler = None
-
-    def __del__(self):
-        """Ensure the file handler is closed on destruction"""
-        self.close()
+def _now_iso() -> str:
+    return datetime.now().isoformat()
 
 
 class ReportStatus(str, Enum):
@@ -968,7 +602,7 @@ class ReportAgent:
             graph_id=self.graph_id,
             simulation_requirement=self.simulation_requirement,
             status=ReportStatus.PENDING,
-            created_at=datetime.now().isoformat(),
+            created_at=_now_iso(),
         )
 
         try:
@@ -1014,21 +648,7 @@ class ReportAgent:
                     f"[Round {a.round_num}] [{a.platform}] {a.agent_name} ({a.action_type}): {content_preview}"
                 )
 
-            # Interview top agents
-            interview_text = ""
-            try:
-                top_agents = sorted(agent_stats, key=lambda x: x.get("total_actions", 0), reverse=True)[:5]
-                if top_agents:
-                    interview_result = self.graph_tools.interview_agents(
-                        simulation_id=self.simulation_id,
-                        interview_requirement=f"What is your prediction for how {self.simulation_requirement}? What surprised you during the simulation?",
-                        simulation_requirement=self.simulation_requirement,
-                        max_agents=5,
-                    )
-                    if hasattr(interview_result, "to_text"):
-                        interview_text = interview_result.to_text()
-            except Exception as e:
-                logger.warning(f"Interview failed (non-fatal): {e}")
+            interview_text = self._collect_interview_text(agent_stats)
 
             if progress_callback:
                 progress_callback("generating", 40, "Generating report...")
@@ -1116,7 +736,7 @@ Write a prediction report with:
             report.outline = outline
             report.markdown_content = response
             report.status = ReportStatus.COMPLETED
-            report.completed_at = datetime.now().isoformat()
+            report.completed_at = _now_iso()
 
             ReportManager.save_report(report)
             ReportManager.save_outline(report_id, outline)
@@ -1132,13 +752,7 @@ Write a prediction report with:
             return report
 
         except Exception as exc:
-            report.status = ReportStatus.FAILED
-            report.error = str(exc)
-            report.completed_at = datetime.now().isoformat()
-            try:
-                ReportManager.save_report(report)
-            except Exception:
-                pass
+            self._record_failed_report(report, str(exc), "Failed to persist report on fast-path failure")
             logger.error(f"Report generation failed: {exc}")
             raise
 
@@ -1208,9 +822,7 @@ Write a prediction report with:
             elif tool_name == "panorama_search":
                 # Broad search - get panoramic view
                 query = parameters.get("query", "")
-                include_expired = parameters.get("include_expired", True)
-                if isinstance(include_expired, str):
-                    include_expired = include_expired.lower() in ['true', '1', 'yes']
+                include_expired = self._coerce_bool(parameters.get("include_expired", True))
                 result = self.graph_tools.panorama_search(
                     graph_id=self.graph_id,
                     query=query,
@@ -1221,9 +833,7 @@ Write a prediction report with:
             elif tool_name == "quick_search":
                 # Simple search - quick retrieval
                 query = parameters.get("query", "")
-                limit = parameters.get("limit", 10)
-                if isinstance(limit, str):
-                    limit = int(limit)
+                limit = self._coerce_int(parameters.get("limit", 10), default=10)
                 result = self.graph_tools.quick_search(
                     graph_id=self.graph_id,
                     query=query,
@@ -1234,10 +844,7 @@ Write a prediction report with:
             elif tool_name == "interview_agents":
                 # Deep interview - call the real OASIS interview API to get simulation Agent responses (dual platform)
                 interview_topic = parameters.get("interview_topic", parameters.get("query", ""))
-                max_agents = parameters.get("max_agents", 5)
-                if isinstance(max_agents, str):
-                    max_agents = int(max_agents)
-                max_agents = min(max_agents, 10)
+                max_agents = min(self._coerce_int(parameters.get("max_agents", 5), default=5), 10)
                 result = self.graph_tools.interview_agents(
                     simulation_id=self.simulation_id,
                     interview_requirement=interview_topic,
@@ -1246,10 +853,7 @@ Write a prediction report with:
                 )
                 return result.to_text()
 
-            # ========== Backward-compatible legacy tools (internally redirect to new tools) ==========
-
             elif tool_name == "search_graph":
-                # Redirect to quick_search
                 logger.info("search_graph redirected to quick_search")
                 return self._execute_tool("quick_search", parameters, report_context)
 
@@ -1266,7 +870,6 @@ Write a prediction report with:
                 return json.dumps(result, ensure_ascii=False, indent=2)
 
             elif tool_name == "get_simulation_context":
-                # Redirect to insight_forge, as it is more powerful
                 logger.info("get_simulation_context redirected to insight_forge")
                 query = parameters.get("query", self.simulation_requirement)
                 return self._execute_tool("insight_forge", {"query": query}, report_context)
@@ -1283,12 +886,91 @@ Write a prediction report with:
             else:
                 return f"Unknown tool: {tool_name}. Please use one of: insight_forge, panorama_search, quick_search"
 
-        except Exception as e:
-            logger.error(f"Tool execution failed: {tool_name}, error: {str(e)}")
-            return f"Tool execution failed: {str(e)}"
+        except Exception as exc:
+            logger.error(f"Tool execution failed: {tool_name}, error: {str(exc)}")
+            return f"Tool execution failed: {str(exc)}"
 
-    # Set of valid tool names, used for bare JSON fallback parsing validation
     VALID_TOOL_NAMES = {"insight_forge", "panorama_search", "quick_search", "interview_agents"}
+
+    @staticmethod
+    def _coerce_bool(value: Any) -> bool:
+        if isinstance(value, str):
+            return value.lower() in ['true', '1', 'yes']
+        return bool(value)
+
+    @staticmethod
+    def _coerce_int(value: Any, default: int) -> int:
+        if value is None:
+            return default
+        if isinstance(value, int):
+            return value
+        return int(value)
+
+    def _parse_tool_call_json(self, payload: str) -> Optional[Dict[str, Any]]:
+        try:
+            call_data = json.loads(payload)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(call_data, dict):
+            return None
+        return call_data if self._is_valid_tool_call(call_data) else None
+
+    @staticmethod
+    def _default_outline() -> ReportOutline:
+        return ReportOutline(
+            title="Future Prediction Report",
+            summary="Future trends and risk analysis based on simulation predictions",
+            sections=[
+                ReportSection(title="Prediction Scenario and Core Findings"),
+                ReportSection(title="Population Behavior Prediction Analysis"),
+                ReportSection(title="Trend Outlook and Risk Alerts"),
+            ],
+        )
+
+    def _record_failed_report(self, report: Report, error: str, debug_message: str) -> None:
+        report.status = ReportStatus.FAILED
+        report.error = error
+        report.completed_at = _now_iso()
+        try:
+            ReportManager.save_report(report)
+        except REPORT_STORAGE_ERRORS:
+            logger.debug(debug_message, exc_info=True)
+
+    def _collect_interview_text(self, agent_stats: List[Dict[str, Any]]) -> str:
+        top_agents = sorted(agent_stats, key=lambda x: x.get("total_actions", 0), reverse=True)[:5]
+        if not top_agents:
+            return ""
+
+        try:
+            interview_result = self.graph_tools.interview_agents(
+                simulation_id=self.simulation_id,
+                interview_requirement=(
+                    f"What is your prediction for how {self.simulation_requirement}? "
+                    "What surprised you during the simulation?"
+                ),
+                simulation_requirement=self.simulation_requirement,
+                max_agents=5,
+            )
+        except OPTIONAL_INTERVIEW_ERRORS as exc:
+            logger.warning(f"Interview failed (non-fatal): {exc}")
+            return ""
+
+        return interview_result.to_text() if hasattr(interview_result, "to_text") else ""
+
+    def _load_existing_report_excerpt(self) -> str:
+        try:
+            report = ReportManager.get_report_by_simulation(self.simulation_id)
+        except REPORT_STORAGE_ERRORS as exc:
+            logger.warning(f"Failed to retrieve report content: {exc}")
+            return ""
+
+        if not report or not report.markdown_content:
+            return ""
+
+        report_content = report.markdown_content[:15000]
+        if len(report.markdown_content) > 15000:
+            report_content += "\n\n... [Report content truncated] ..."
+        return report_content
 
     def _parse_tool_calls(self, response: str) -> List[Dict[str, Any]]:
         """
@@ -1300,46 +982,33 @@ Write a prediction report with:
         """
         tool_calls = []
 
-        # Format 1: XML style (standard format)
         xml_pattern = r'<tool_call>\s*(\{.*?\})\s*</tool_call>'
         for match in re.finditer(xml_pattern, response, re.DOTALL):
-            try:
-                call_data = json.loads(match.group(1))
+            call_data = self._parse_tool_call_json(match.group(1))
+            if call_data is not None:
                 tool_calls.append(call_data)
-            except json.JSONDecodeError:
-                pass
 
         if tool_calls:
             return tool_calls
 
-        # Format 2: Fallback - LLM directly outputs bare JSON (without <tool_call> tags)
-        # Only attempted when Format 1 does not match, to avoid false matches in body text JSON
         stripped = response.strip()
         if stripped.startswith('{') and stripped.endswith('}'):
-            try:
-                call_data = json.loads(stripped)
-                if self._is_valid_tool_call(call_data):
-                    tool_calls.append(call_data)
-                    return tool_calls
-            except json.JSONDecodeError:
-                pass
+            call_data = self._parse_tool_call_json(stripped)
+            if call_data is not None:
+                tool_calls.append(call_data)
+                return tool_calls
 
-        # Response may contain thinking text + bare JSON; try to extract the last JSON object
         json_pattern = r'(\{"(?:name|tool)"\s*:.*?\})\s*$'
         match = re.search(json_pattern, stripped, re.DOTALL)
         if match:
-            try:
-                call_data = json.loads(match.group(1))
-                if self._is_valid_tool_call(call_data):
-                    tool_calls.append(call_data)
-            except json.JSONDecodeError:
-                pass
+            call_data = self._parse_tool_call_json(match.group(1))
+            if call_data is not None:
+                tool_calls.append(call_data)
 
         return tool_calls
 
     def _is_valid_tool_call(self, data: dict) -> bool:
         """Validate whether the parsed JSON is a valid tool call"""
-        # Supports both {"name": ..., "parameters": ...} and {"tool": ..., "params": ...} key names
         tool_name = data.get("name") or data.get("tool")
         if tool_name and tool_name in self.VALID_TOOL_NAMES:
             # Normalize key names to name / parameters
@@ -1505,18 +1174,9 @@ Write a prediction report with:
             logger.info(f"Outline planning completed: {len(sections)} sections")
             return outline
 
-        except Exception as e:
-            logger.error(f"Outline planning failed: {str(e)}")
-            # Return default outline (3 sections, as fallback)
-            return ReportOutline(
-                title="Future Prediction Report",
-                summary="Future trends and risk analysis based on simulation predictions",
-                sections=[
-                    ReportSection(title="Prediction Scenario and Core Findings"),
-                    ReportSection(title="Population Behavior Prediction Analysis"),
-                    ReportSection(title="Trend Outlook and Risk Alerts")
-                ]
-            )
+        except OUTLINE_GENERATION_ERRORS as exc:
+            logger.error(f"Outline planning failed: {str(exc)}")
+            return self._default_outline()
 
     def _generate_section_react(
         self,
@@ -1898,7 +1558,7 @@ Write a prediction report with:
             graph_id=self.graph_id,
             simulation_requirement=self.simulation_requirement,
             status=ReportStatus.PENDING,
-            created_at=datetime.now().isoformat()
+            created_at=_now_iso()
         )
 
         # List of completed section titles (for progress tracking)
@@ -2036,7 +1696,7 @@ Write a prediction report with:
             # Use ReportManager to assemble the complete report
             report.markdown_content = ReportManager.assemble_full_report(report_id, outline)
             report.status = ReportStatus.COMPLETED
-            report.completed_at = datetime.now().isoformat()
+            report.completed_at = _now_iso()
 
             # Calculate total elapsed time
             total_time_seconds = (datetime.now() - start_time).total_seconds()
@@ -2067,24 +1727,20 @@ Write a prediction report with:
 
             return report
 
-        except Exception as e:
-            logger.error(f"Report generation failed: {str(e)}")
-            report.status = ReportStatus.FAILED
-            report.error = str(e)
+        except Exception as exc:
+            logger.error(f"Report generation failed: {str(exc)}")
+            self._record_failed_report(report, str(exc), "Failed to persist report on failure state")
 
-            # Record error log
             if self.report_logger:
-                self.report_logger.log_error(str(e), "failed")
+                self.report_logger.log_error(str(exc), "failed")
 
-            # Save failed state
             try:
-                ReportManager.save_report(report)
                 ReportManager.update_progress(
-                    report_id, "failed", -1, f"Report generation failed: {str(e)}",
+                    report_id, "failed", -1, f"Report generation failed: {str(exc)}",
                     completed_sections=completed_section_titles
                 )
-            except Exception:
-                pass  # Ignore errors when saving failure state
+            except REPORT_STORAGE_ERRORS:
+                logger.debug("Failed to persist report progress on failure state", exc_info=True)
 
             # Close console logger
             if self.console_logger:
@@ -2118,17 +1774,7 @@ Write a prediction report with:
 
         chat_history = chat_history or []
 
-        # Retrieve already generated report content
-        report_content = ""
-        try:
-            report = ReportManager.get_report_by_simulation(self.simulation_id)
-            if report and report.markdown_content:
-                # Limit report length to avoid excessive context
-                report_content = report.markdown_content[:15000]
-                if len(report.markdown_content) > 15000:
-                    report_content += "\n\n... [Report content truncated] ..."
-        except Exception as e:
-            logger.warning(f"Failed to retrieve report content: {e}")
+        report_content = self._load_existing_report_excerpt()
 
         system_prompt = CHAT_SYSTEM_PROMPT_TEMPLATE.format(
             simulation_requirement=self.simulation_requirement,
@@ -2548,7 +2194,7 @@ class ReportManager:
             "message": message,
             "current_section": current_section,
             "completed_sections": completed_sections or [],
-            "updated_at": datetime.now().isoformat()
+            "updated_at": _now_iso()
         }
 
         with open(cls._get_progress_path(report_id), 'w', encoding='utf-8') as f:

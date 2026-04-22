@@ -11,9 +11,26 @@ from ..utils.logger import get_logger
 logger = get_logger("mirofish.tools.simulation_support")
 
 
-def check_simulation_prepared(simulation_id: str) -> Tuple[bool, Dict[str, Any]]:
+PreparedState = Tuple[bool, Dict[str, Any]]
+
+
+def _simulation_dir(simulation_id: str) -> str:
+    return os.path.join(Config.OASIS_SIMULATION_DATA_DIR, simulation_id)
+
+
+def _load_json_file(path: str) -> Any:
+    with open(path, "r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def _save_state_file(path: str, state_data: Dict[str, Any]) -> None:
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(state_data, handle, ensure_ascii=False, indent=2)
+
+
+def check_simulation_prepared(simulation_id: str) -> PreparedState:
     """Check whether a simulation has all artifacts needed to run."""
-    simulation_dir = os.path.join(Config.OASIS_SIMULATION_DATA_DIR, simulation_id)
+    simulation_dir = _simulation_dir(simulation_id)
     if not os.path.exists(simulation_dir):
         return False, {"reason": "Simulation directory does not exist"}
 
@@ -42,8 +59,9 @@ def check_simulation_prepared(simulation_id: str) -> Tuple[bool, Dict[str, Any]]
 
     state_file = os.path.join(simulation_dir, "state.json")
     try:
-        with open(state_file, "r", encoding="utf-8") as f:
-            state_data = json.load(f)
+        state_data = _load_json_file(state_file)
+        if not isinstance(state_data, dict):
+            raise ValueError("state.json must contain an object")
 
         status = state_data.get("status", "")
         config_generated = state_data.get("config_generated", False)
@@ -53,19 +71,17 @@ def check_simulation_prepared(simulation_id: str) -> Tuple[bool, Dict[str, Any]]
             profiles_file = os.path.join(simulation_dir, "reddit_profiles.json")
             profiles_count = 0
             if os.path.exists(profiles_file):
-                with open(profiles_file, "r", encoding="utf-8") as f:
-                    profiles_data = json.load(f)
-                    profiles_count = len(profiles_data) if isinstance(profiles_data, list) else 0
+                profiles_data = _load_json_file(profiles_file)
+                profiles_count = len(profiles_data) if isinstance(profiles_data, list) else 0
 
             if status == "preparing":
                 try:
                     state_data["status"] = "ready"
                     state_data["updated_at"] = datetime.now().isoformat()
-                    with open(state_file, "w", encoding="utf-8") as f:
-                        json.dump(state_data, f, ensure_ascii=False, indent=2)
+                    _save_state_file(state_file, state_data)
                     status = "ready"
                     logger.info(f"Auto-updated simulation status: {simulation_id} preparing -> ready")
-                except Exception as exc:
+                except OSError as exc:
                     logger.warning(f"Failed to auto-update simulation status: {exc}")
 
             return True, {
@@ -85,5 +101,5 @@ def check_simulation_prepared(simulation_id: str) -> Tuple[bool, Dict[str, Any]]
             "config_generated": config_generated,
             "existing_files": existing_files,
         }
-    except Exception as exc:
+    except (OSError, ValueError, json.JSONDecodeError, TypeError) as exc:
         return False, {"reason": f"Failed to read state file: {exc}"}

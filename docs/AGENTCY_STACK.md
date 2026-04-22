@@ -1,8 +1,8 @@
 # AGENTCY_STACK
 
-Last updated: 2026-04-14
+Last updated: 2026-04-20
 
-Note: literal repo directory renames to the `agentcy-*` names landed on 2026-04-12. Older loop notes below intentionally preserve pre-rename names where they describe historical proof work. The current bounded synthesis is the 2026-04-14 family checkpoint; mixed writer contracts remain intentionally locked even though live repo directories are now `agentcy-*`.
+Note: literal repo directory renames to the `agentcy-*` names landed on 2026-04-12. Older loop notes below intentionally preserve pre-rename names where they describe historical proof work. The current bounded synthesis is the 2026-04-14 family checkpoint; mixed writer contracts remain intentionally locked even though live repo directories are now `agentcy-*`. Historical `agentcy-lab` mentions below are superseded by the current live monorepo, where bounded calibration/study work now sits under `agentcy-pulse`.
 
 ## Canonical docs
 
@@ -17,23 +17,24 @@ Use the consolidation doc as historical context and a source of concrete contrac
 
 ## Current family vs supporting surfaces
 
-### Current six-repo family
+### Current live monorepo modules
 
 | Current repo | Module | Role now |
 | --- | --- | --- |
+| `protocols` | `agentcy-protocols` | parent protocol authority for schemas, examples, lineage rules, and thin handoff adapters |
 | `agentcy-compass` | `agentcy-compass` | strategy / policy / brief layer |
 | `agentcy-echo` | `agentcy-echo` | foresight / forecast layer |
-| `agentcy-lab` | `agentcy-lab` | shared eval / autoresearch plane |
 | `agentcy-loom` | `agentcy-loom` | execution / review / publish runtime |
-| `agentcy-pulse` | `agentcy-pulse` | analytics / attribution / feedback layer |
+| `agentcy-pulse` | `agentcy-pulse` | analytics / attribution / feedback + repo-local study layer |
 | `agentcy-vox` | `agentcy-vox` | voice / persona / drift layer |
+
+The current operator layer at the monorepo root is `agentcy`, which now provides `doctor`, `pipeline run`, `pipeline update`, and `pipeline study` over the member CLIs without changing the canonical protocol writers. Preview bundles are module-first (`vox/`, `compass/`, `echo/`, `loom/`, `pulse/`, `reports/`), can use stable names via `--pipeline-id`, and can forward compatible root `--provider` / `--model` choices into Compass as `BRANDOPS_LLM_PROVIDER` / `BRANDOPS_LLM_MODEL`.
 
 ### Supporting / control-plane surfaces
 
 | Surface | Role now |
 | --- | --- |
 | `cli-agency` | supporting source-material repo to narrow/re-home, primarily toward `agentcy-compass`; not a current family product module or canonical artifact writer |
-| `protocols` | parent control-plane authority for schemas, examples, lineage rules, family tests, and thin handoff adapters; not a family product repo |
 
 ## Architecture rules
 

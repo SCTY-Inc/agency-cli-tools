@@ -52,9 +52,11 @@ agentcy-vox init name                   # Empty template
 agentcy-vox ls / show / edit / rm       # CRUD
 agentcy-vox mix A B --as C              # Compose personas
 agentcy-vox enrich name --query "..."   # Add real-world context (Exa)
-agentcy-vox test name                   # DSPy consistency check
-agentcy-vox optimize name               # GEPA prompt evolution
-agentcy-vox drift name "response"       # Check single response
+agentcy-vox test name --difficulty stress --save-report   # structured eval tiers + saved report
+agentcy-vox evals name --latest                           # inspect latest saved eval report
+agentcy-vox evals name --compare                          # compare latest vs previous eval report
+agentcy-vox optimize name                                 # GEPA prompt evolution
+agentcy-vox drift name "response"                         # Check single response
 agentcy-vox learn name --apply          # Learn from interactions
 agentcy-vox critique name --apply       # Self-critique
 agentcy-vox chat name                   # Interactive REPL
@@ -70,9 +72,11 @@ src/prsna/
 ├── persona.py          # Persona class + chat methods
 ├── llm.py              # Centralized LLM interface
 ├── clients.py          # Shared API clients (Exa)
-├── bootstrap.py        # LLM-powered persona generation
+├── bootstrap.py        # LLM-powered persona generation + repair pass
 ├── drift.py            # Consistency monitoring
 ├── learning.py         # Self-improvement from interactions
+├── eval_cases.py       # Generated and custom eval-case loading
+├── eval_store.py       # Saved eval-report persistence under ~/.prsna/evals/
 ├── utils.py            # JSON parsing helpers
 ├── enrichment/
 │   └── exa.py          # Exa people search integration
@@ -90,7 +94,7 @@ src/prsna/
 | `persona.py` | Core `Persona` class with `.chat()`, `.stream()`, `.conversation()`, `.as_user()`, `.generate()` |
 | `llm.py` | Centralized LLM calls: `complete()`, `complete_json()`, `complete_chat()` with error handling |
 | `clients.py` | Shared API clients: `get_exa_client()` singleton |
-| `bootstrap.py` | `bootstrap_from_description()`, `bootstrap_from_person()`, `bootstrap_from_role()` |
+| `bootstrap.py` | `bootstrap_from_description()`, `bootstrap_from_person()`, `bootstrap_from_role()` with a repair pass before save/export |
 | `drift.py` | `detect_drift()`, `monitor_conversation()`, `ConversationDrift` |
 | `learning.py` | `log_interaction()`, `analyze_interactions()`, `self_critique()`, `apply_learnings()` |
 
@@ -100,8 +104,11 @@ src/prsna/
 ~/.prsna/
 ├── personas/           # Persona YAML files
 │   └── scientist.yaml
-└── learning/           # Interaction logs for learning
-    └── scientist.json
+├── learning/           # Interaction logs for learning
+│   └── scientist.json
+└── evals/              # Saved persona eval reports
+    └── scientist/
+        └── 20260418T000000000000Z.json
 ```
 
 ## Dependencies
@@ -150,6 +157,7 @@ Loop-9 proof work should keep help/version/install examples honest. Until a futu
 2. Use `load_persona()` helper to get persona by name
 3. Use `console.status()` for long operations
 4. Use `rprint()` with rich markup for output
+5. If the command emits durable evaluation state, persist it via `src/prsna/eval_store.py` instead of inventing a second storage path
 
 ### Modify persona schema
 

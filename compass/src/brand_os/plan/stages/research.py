@@ -10,6 +10,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from brand_os.core.llm import complete_json
+from brand_os.plan.stages.normalize import normalize_research_result
 
 
 class Competitor(BaseModel):
@@ -93,4 +94,4 @@ def research(
 
     result = complete_json(prompt=prompt, system=RESEARCH_SYSTEM, default=default)
 
-    return ResearchResult(**result)
+    return ResearchResult(**normalize_research_result(result, brief=brief))

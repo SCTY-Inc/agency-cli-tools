@@ -37,6 +37,7 @@ class RunSimulationTool:
         max_rounds: Optional[int] = None,
         enable_graph_memory_update: bool = False,
         force: bool = False,
+        wait_for_commands: bool = True,
         session_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         require_simulation_runtime()
@@ -115,6 +116,7 @@ class RunSimulationTool:
             max_rounds=max_rounds,
             enable_graph_memory_update=enable_graph_memory_update,
             graph_id=graph_id,
+            wait_for_commands=wait_for_commands,
         )
 
         state.status = SimulationStatus.RUNNING

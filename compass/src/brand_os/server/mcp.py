@@ -1,10 +1,11 @@
-"""MCP server (optional)."""
+"""MCP server surface.
+
+This module is intentionally explicit that MCP is not wired into the current
+repo build.
+"""
 from __future__ import annotations
 
 
 def create_mcp_server():
-    """Create MCP server for LLM integration.
-
-    This is a placeholder - implement with MCP SDK.
-    """
-    raise NotImplementedError("MCP server not yet implemented")
+    """Raise for the unimplemented MCP integration."""
+    raise NotImplementedError("MCP server is not implemented in this build")

@@ -1,4 +1,7 @@
-"""Reve image generation provider (placeholder)."""
+"""Reve image generation provider.
+
+This provider name is reserved, but the runtime is not yet shipped here.
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,20 +13,11 @@ def generate_with_reve(
     brand: str | None = None,
     output_path: Path | None = None,
 ) -> dict[str, Any]:
-    """Generate image using Reve.
-
-    Args:
-        direction: Image prompt
-        brand: Brand name
-        output_path: Output path
-
-    Returns:
-        Result dict
-
-    Note: This is a placeholder. Implement actual Reve API integration as needed.
-    """
+    """Return an explicit unsupported result for the unshipped Reve runtime."""
     return {
         "success": False,
-        "error": "Reve provider not implemented",
+        "error": "Reve image generation is not implemented in this build.",
         "prompt": direction,
+        "brand": brand,
+        "output_path": str(output_path) if output_path else None,
     }

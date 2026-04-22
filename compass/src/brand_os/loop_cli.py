@@ -45,6 +45,11 @@ def loop_start(
         signal_fetch_interval=interval,
     )
 
+    if not foreground:
+        raise typer.BadParameter(
+            "Background mode is not implemented yet; rerun without --no-foreground."
+        )
+
     loop = AutonomousLoop(config)
 
     # Event logger
@@ -227,27 +232,24 @@ def decision_approve(
         agentcy-compass decision approve abc123 --reason "Reviewed and approved"
         agentcy-compass decision approve abc123 --execute
     """
-    from brand_os.core.decision import DecisionStatus, get_decision, get_decision_log
+    from brand_os.workflows.approval import approve_decision
 
-    decision = get_decision(decision_id)
+    try:
+        decision = approve_decision(decision_id, reviewer="cli", reason=reason)
+    except ValueError as exc:
+        console.print(f"[yellow]{exc}[/yellow]")
+        raise typer.Exit(1)
+
     if not decision:
         console.print(f"[red]Decision not found: {decision_id}[/red]")
         raise typer.Exit(1)
 
-    if decision.status != DecisionStatus.PENDING_REVIEW:
-        console.print(f"[yellow]Decision is not pending review (status: {decision.status.value})[/yellow]")
-        raise typer.Exit(1)
-
-    decision.status = DecisionStatus.APPROVED
-    decision.reviewer = "cli"
-    decision.review_reason = reason
-    decision.reviewed_at = utc_now()
-
-    get_decision_log().update(decision)
     console.print(f"[green]Approved decision: {decision_id}[/green]")
 
     if execute:
-        console.print("[yellow]Execution not yet implemented[/yellow]")
+        console.print(
+            "[yellow]Manual execution is still operator-managed; no autonomous handler is wired.[/yellow]"
+        )
 
 
 @decision_app.command("reject")
@@ -260,19 +262,18 @@ def decision_reject(
     Examples:
         agentcy-compass decision reject abc123 --reason "Not aligned with brand voice"
     """
-    from brand_os.core.decision import DecisionStatus, get_decision, get_decision_log
+    from brand_os.workflows.approval import reject_decision
 
-    decision = get_decision(decision_id)
+    try:
+        decision = reject_decision(decision_id, reviewer="cli", reason=reason)
+    except ValueError as exc:
+        console.print(f"[yellow]{exc}[/yellow]")
+        raise typer.Exit(1)
+
     if not decision:
         console.print(f"[red]Decision not found: {decision_id}[/red]")
         raise typer.Exit(1)
 
-    decision.status = DecisionStatus.REJECTED
-    decision.reviewer = "cli"
-    decision.review_reason = reason
-    decision.reviewed_at = utc_now()
-
-    get_decision_log().update(decision)
     console.print(f"[red]Rejected decision: {decision_id}[/red]")
 
 

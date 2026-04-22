@@ -137,8 +137,10 @@ class FileParser:
                 text = cls.extract_text(file_path)
                 filename = Path(file_path).name
                 all_texts.append(f"=== Document {i}: {filename} ===\n{text}")
-            except Exception as e:
-                all_texts.append(f"=== Document {i}: {file_path} (extraction failed: {str(e)}) ===")
+            except (FileNotFoundError, ImportError, OSError, RuntimeError, ValueError) as exc:
+                all_texts.append(
+                    f"=== Document {i}: {file_path} (extraction failed: {str(exc)}) ==="
+                )
         
         return "\n\n".join(all_texts)
 

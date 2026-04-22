@@ -204,6 +204,30 @@ def test_build_brief_v1_ingests_rich_voice_pack_fixture(monkeypatch):
     assert "avoid sound clinical or robotic" in brief.creative.tone_notes
 
 
+def test_build_brief_v1_handles_empty_sources_list(monkeypatch):
+    monkeypatch.setattr(
+        "brand_os.plan.brief_v1.load_brand_profile",
+        lambda brand: _Profile(tone="steady", platforms={"email": {}}),
+    )
+
+    brief = build_brief_v1(
+        brief="Launch an employer caregiving resource.",
+        brand="GiveCare",
+        voice_pack_id="givecare.voice.default.v1",
+        campaign_id="givecare.campaign.employer-resource.2026-04-19",
+        research_result={"insights": [], "sources": []},
+        strategy_result={"positioning": "Caregiving is a workplace issue."},
+        creative_result={
+            "ctas": ["Review the resource."],
+            "headlines": [{"text": "Caregiving at work"}],
+            "body_copy": ["Caregiving is a workplace issue."],
+        },
+        activation_result={"channels": [{"channel": "email", "objective": "Engagement"}]},
+    )
+
+    assert brief.signal.source == "planning-input"
+
+
 def test_build_brief_v1_selectively_rehomes_research_and_strategy_concepts(monkeypatch):
     monkeypatch.setattr(
         "brand_os.plan.brief_v1.load_brand_profile",

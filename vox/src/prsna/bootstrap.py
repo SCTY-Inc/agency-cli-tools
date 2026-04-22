@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from prsna.clients import get_exa_client
 from prsna.llm import DEFAULT_MODEL, complete_json
 
@@ -41,6 +43,36 @@ Generate a complete persona specification as JSON with these fields:
 
 Output ONLY valid JSON, no markdown or explanation."""
 
+PERSONA_REPAIR_PROMPT = """You are reviewing a persona JSON specification before it is saved.
+
+Repair only concrete quality issues:
+- contradictory traits or boundaries
+- vague or generic voice patterns
+- examples that do not match the description
+- missing specificity that would make persona testing weak
+
+Keep the same overall intent and shape. Return the repaired persona as JSON only."""
+
+
+def _repair_persona_data(persona_data: dict, model: str) -> dict:
+    repaired = complete_json(
+        prompt=(
+            "Review and repair this persona JSON for internal consistency and testability:\n\n"
+            f"{json.dumps(persona_data, ensure_ascii=False, indent=2)}"
+        ),
+        model=model,
+        system=PERSONA_REPAIR_PROMPT,
+        default=persona_data,
+    )
+
+    merged = dict(persona_data)
+    merged.update(repaired)
+
+    if "context" in persona_data and "context" not in merged:
+        merged["context"] = persona_data["context"]
+
+    return merged
+
 
 def bootstrap_from_description(
     description: str,
@@ -55,11 +87,12 @@ def bootstrap_from_description(
     Returns:
         Dict with persona fields ready to create Persona object
     """
-    return complete_json(
+    persona_data = complete_json(
         prompt=f"Create a persona for: {description}",
         model=model,
         system=BOOTSTRAP_SYSTEM_PROMPT,
     )
+    return _repair_persona_data(persona_data, model)
 
 
 def bootstrap_from_person(
@@ -119,7 +152,7 @@ def bootstrap_from_person(
         "sources": [r.url for r in results.results[:3]],
     }
 
-    return persona_data
+    return _repair_persona_data(persona_data, model)
 
 
 def bootstrap_from_role(
@@ -149,7 +182,8 @@ Consider:
 - What would their priorities and concerns be?
 - How would they approach problems?"""
 
-    return complete_json(prompt=prompt, model=model, system=BOOTSTRAP_SYSTEM_PROMPT)
+    persona_data = complete_json(prompt=prompt, model=model, system=BOOTSTRAP_SYSTEM_PROMPT)
+    return _repair_persona_data(persona_data, model)
 
 
 def bootstrap_from_examples(
@@ -177,4 +211,4 @@ Based on how the assistant communicates, create a persona specification that wou
 
     persona_data = complete_json(prompt=prompt, model=model, system=BOOTSTRAP_SYSTEM_PROMPT)
     persona_data["examples"] = examples  # Keep original examples
-    return persona_data
+    return _repair_persona_data(persona_data, model)
