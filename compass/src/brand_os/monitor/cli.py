@@ -6,7 +6,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from brand_os.cli_utils import emit
+from brand_os.cli_utils import emit, pick_format, status
 
 monitor_app = typer.Typer(help="Brand monitoring commands.")
 console = Console()
@@ -19,7 +19,7 @@ def report(
     send: bool = typer.Option(False, "--send", help="Send via email"),
     to: list[str] = typer.Option([], "--to", "-t", help="Email recipients"),
     output: Path | None = typer.Option(None, "--output", "-o", help="Output file"),
-    format: str = typer.Option("markdown", "--format", "-f", help="Output format: markdown, html, json, yaml"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format: markdown, html, json, yaml"),
 ) -> None:
     """Generate a brand report."""
     from brand_os.monitor.emailer import send_report
@@ -29,36 +29,34 @@ def report(
         generate_report,
     )
 
-    console.print(f"Generating report for {brand} (period: {period})...")
+    status(f"Generating report for {brand} (period: {period})...")
 
     report_obj = generate_report(brand, period=period)
+    resolved_format = pick_format(format, default="markdown")
 
     if send and to:
         result = send_report(report_obj, to=to)
         if result.get("success"):
-            console.print(f"[green]Report sent to: {', '.join(to)}[/green]")
+            status(f"[green]Report sent to: {', '.join(to)}[/green]")
         else:
-            console.print(f"[red]Failed to send: {result.get('error')}[/red]")
+            status(f"[red]Failed to send: {result.get('error')}[/red]")
 
-    # Format output
-    if format == "markdown":
+    if resolved_format == "markdown":
         formatted = format_report_markdown(report_obj)
-    elif format == "html":
+    elif resolved_format == "html":
         formatted = format_report_html(report_obj)
-    elif format in ("json", "yaml"):
-        if output:
-            output.write_text(emit(report_obj.model_dump(), format))
-            console.print(f"Report saved to: {output}")
-            return
-        else:
-            emit(report_obj.model_dump(), format)
-            return
+    elif resolved_format in {"json", "yaml"}:
+        payload = emit(report_obj.model_dump(), resolved_format)
+        if output and payload is not None:
+            output.write_text(payload)
+            status(f"Report saved to: {output}")
+        return
     else:
         formatted = format_report_markdown(report_obj)
 
     if output:
         output.write_text(formatted)
-        console.print(f"Report saved to: {output}")
+        status(f"Report saved to: {output}")
     else:
         console.print(formatted)
 
@@ -67,22 +65,17 @@ def report(
 def analyze(
     brand: str = typer.Option(..., "--brand", "-b", help="Brand name"),
     period: str = typer.Option("7d", "--period", "-p", help="Time period"),
-    format: str = typer.Option("table", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Analyze brand signals and performance."""
+    from brand_os.core.brands import load_brand_config
     from brand_os.signals.history import get_signal_count, query_signals
     from brand_os.signals.relevance import filter_signals
-    from brand_os.core.brands import load_brand_config
 
     config = load_brand_config(brand)
     signals = query_signals(brand, since=period, limit=200)
+    total_signals = get_signal_count(brand)
 
-    console.print(f"[bold]Signal Analysis for {brand}[/bold]")
-    console.print(f"Period: {period}")
-    console.print(f"Total signals in history: {get_signal_count(brand)}")
-    console.print(f"Signals in period: {len(signals)}")
-
-    # Filter relevant signals
     relevant = filter_signals(
         signals,
         keywords=config.get("keywords", []),
@@ -90,6 +83,52 @@ def analyze(
         min_score=0.3,
     )
 
+    learnings = None
+    try:
+        from brand_os.eval.learnings import get_learnings
+
+        learnings = get_learnings(brand)
+    except Exception:
+        learnings = None
+
+    queue_summary = None
+    try:
+        from brand_os.publish.queue import get_queue
+
+        queue_summary = {
+            "pending": len(get_queue(brand, status="pending")),
+            "posted": len(get_queue(brand, status="posted")),
+        }
+    except Exception:
+        queue_summary = None
+
+    payload = {
+        "brand": brand,
+        "period": period,
+        "total_signals": total_signals,
+        "signals_in_period": len(signals),
+        "relevant_signals": len(relevant),
+        "top_signals": [
+            {
+                "score": signal.get("relevance_score", 0),
+                "headline": signal.get("headline", signal.get("title", "")),
+                "signal": signal,
+            }
+            for signal in relevant[:10]
+        ],
+        "learnings": learnings,
+        "queue": queue_summary,
+    }
+    resolved_format = pick_format(format, default="table")
+
+    if resolved_format != "table":
+        emit(payload, resolved_format)
+        return
+
+    console.print(f"[bold]Signal Analysis for {brand}[/bold]")
+    console.print(f"Period: {period}")
+    console.print(f"Total signals in history: {total_signals}")
+    console.print(f"Signals in period: {len(signals)}")
     console.print(f"Relevant signals: {len(relevant)}")
 
     if relevant:
@@ -99,26 +138,14 @@ def analyze(
             headline = signal.get("headline", signal.get("title", ""))[:60]
             console.print(f"  [{score:.2f}] {headline}")
 
-    # Try to load learnings
-    try:
-        from brand_os.eval.learnings import get_learnings
-        learnings = get_learnings(brand)
-        if learnings:
-            console.print("\n[bold]Content Learnings:[/bold]")
-            for dim in learnings.get("weak_dimensions", [])[:3]:
-                console.print(f"  - Weak: {dim}")
-            for rec in learnings.get("recommendations", [])[:3]:
-                console.print(f"  - Rec: {rec}")
-    except Exception:
-        pass
+    if learnings:
+        console.print("\n[bold]Content Learnings:[/bold]")
+        for dim in learnings.get("weak_dimensions", [])[:3]:
+            console.print(f"  - Weak: {dim}")
+        for recommendation in learnings.get("recommendations", [])[:3]:
+            console.print(f"  - Rec: {recommendation}")
 
-    # Queue status
-    try:
-        from brand_os.publish.queue import get_queue
-        pending = len(get_queue(brand, status="pending"))
-        posted = len(get_queue(brand, status="posted"))
-        console.print(f"\n[bold]Content Queue:[/bold]")
-        console.print(f"  Pending: {pending}")
-        console.print(f"  Posted: {posted}")
-    except Exception:
-        pass
+    if queue_summary:
+        console.print("\n[bold]Content Queue:[/bold]")
+        console.print(f"  Pending: {queue_summary['pending']}")
+        console.print(f"  Posted: {queue_summary['posted']}")

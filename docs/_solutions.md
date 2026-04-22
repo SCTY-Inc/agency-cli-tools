@@ -1,5 +1,17 @@
 # Solutions Log
 
+## 2026-04-22 — Root `agentcy member --json` now normalizes cross-member machine contracts
+- Problem: even after tightening Compass, the suite still had real JSON-shape differences across members (`pulse` emitted a normalized envelope, `vox` used raw global JSON, `echo` mixed raw JSON with `success:false` errors, and `loom` wrapped its own command/data shape). That made root-level automation depend on per-member quirks.
+- Fix: the root dispatcher now exposes `agentcy member <member> --json ...`, which injects each member's appropriate JSON mode when possible, captures the member output, and returns one root envelope with normalized `member_status`, `member_command`, `result`, and `stderr` fields.
+
+## 2026-04-22 — Compass now exposes explicit boundaries and a better JSON story
+- Problem: Compass was the blurriest member in the suite: persona functionality still lived there even though vox owns personas, and its JSON contract lagged behind the rest of the family because many data-producing commands still relied on per-command `-f json` conventions or human-oriented default formats.
+- Fix: Compass now exposes `agentcy-compass catalog --json` for an explicit boundary summary, marks the persona surface as deprecated in favor of `agentcy-vox`, accepts a global `--json` preference across compatible data-producing commands, supports `--json-envelope` for normalized Compass-local success payloads, and routes status/progress chatter through stderr-aware helpers so core operator flows stay cleaner for machine composition.
+
+## 2026-04-22 — Root agentcy now exposes consumable suite catalog and install profiles
+- Problem: the suite already had good stage ownership and chainable artifacts, but outside operators still had to infer whether it was a drop-in library, which runtimes were required, and how to install only the surfaces they actually needed.
+- Fix: the root dispatcher now exposes `agentcy catalog --json` for machine-readable suite/member ownership and packaging metadata plus `agentcy quickstart --profile ... --json` for install-profile guidance, and the root package now ships optional extras that reflect the Python-side install contours (`echo-simulation`, `compass-all`, `full-python`).
+
 ## 2026-04-22 — Echo now seeds structured scenario buckets and Pulse scores synthetic-signal quality
 - Problem: Echo could simulate from a fairly flat event seed and the downstream repo-local eval only described run shape, which made it harder to tell whether a forecast came from broad, varied synthetic coverage or from a narrow lane that just happened to stay active.
 - Fix: Echo simulation-config generation now normalizes taxonomy-driven `scenario_buckets` into aligned `initial_posts` / `scheduled_events`, preserves bucket metadata through publisher assignment, and `run_eval.v1.json` now reports synthetic-signal metrics such as coverage, local diversity, complexity, and heuristic critic rejection rate. Pulse `study` now ingests those metrics and folds them into the guarded-risk verdict alongside the older round/top-agent checks.

@@ -9,7 +9,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from brand_os.cli_utils import emit
+from brand_os.cli_utils import emit, pick_format, status
 
 plan_app = typer.Typer(help="Campaign planning commands.")
 console = Console()
@@ -19,7 +19,7 @@ console = Console()
 def research_cmd(
     brief: str = typer.Argument(..., help="Campaign brief or research question"),
     brand: str | None = typer.Option(None, "--brand", "-b", help="Brand name"),
-    format: str = typer.Option("json", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Execute research stage."""
     from brand_os.plan.stages.research import research
@@ -33,7 +33,7 @@ def strategy_cmd(
     input_file: Path | None = typer.Option(None, "--input", "-i", help="Research result JSON"),
     brief: str | None = typer.Option(None, "--brief", help="Brief if no input"),
     brand: str | None = typer.Option(None, "--brand", "-b", help="Brand name"),
-    format: str = typer.Option("json", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Execute strategy stage."""
     from brand_os.plan.stages.strategy import strategy
@@ -54,7 +54,7 @@ def creative_cmd(
     input_file: Path | None = typer.Option(None, "--input", "-i", help="Strategy result JSON"),
     brief: str | None = typer.Option(None, "--brief", help="Brief if no input"),
     brand: str | None = typer.Option(None, "--brand", "-b", help="Brand name"),
-    format: str = typer.Option("json", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Execute creative stage."""
     from brand_os.plan.stages.creative import creative
@@ -74,7 +74,7 @@ def activation_cmd(
     input_file: Path | None = typer.Option(None, "--input", "-i", help="Creative result JSON"),
     brief: str | None = typer.Option(None, "--brief", help="Brief if no input"),
     brand: str | None = typer.Option(None, "--brand", "-b", help="Brand name"),
-    format: str = typer.Option("json", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Execute activation stage."""
     from brand_os.plan.stages.activation import activation
@@ -142,7 +142,7 @@ def run(
         max=1.0,
         help="Policy confidence for brief.v1 emission",
     ),
-    format: str = typer.Option("json", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Run full campaign planning pipeline."""
     from brand_os.plan.brief_v1 import build_brief_v1, load_voice_pack_v1, write_brief_v1
@@ -152,13 +152,14 @@ def run(
     from brand_os.plan.stages.strategy import strategy
     from brand_os.plan.store import save_campaign
 
-    console.print("[bold]Starting campaign pipeline[/bold]")
-    console.print(f"Brief: {brief[:100]}...")
+    resolved_format = pick_format(format, default="json")
+    status("[bold]Starting campaign pipeline[/bold]")
+    status(f"Brief: {brief[:100]}...")
 
     # Research
-    console.print("\n[bold cyan]Stage 1: Research[/bold cyan]")
+    status("\n[bold cyan]Stage 1: Research[/bold cyan]")
     research_result = research(brief=brief, brand=brand)
-    console.print(
+    status(
         "  Found "
         f"{len(research_result.insights)} insights, "
         f"{len(research_result.competitors)} competitors"
@@ -169,18 +170,18 @@ def run(
             raise typer.Abort()
 
     # Strategy
-    console.print("\n[bold cyan]Stage 2: Strategy[/bold cyan]")
+    status("\n[bold cyan]Stage 2: Strategy[/bold cyan]")
     strategy_result = strategy(research_result=research_result.model_dump(), brand=brand)
-    console.print(f"  Positioning: {strategy_result.positioning[:80]}...")
+    status(f"  Positioning: {strategy_result.positioning[:80]}...")
 
     if interactive:
         if not typer.confirm("Continue to creative?"):
             raise typer.Abort()
 
     # Creative
-    console.print("\n[bold cyan]Stage 3: Creative[/bold cyan]")
+    status("\n[bold cyan]Stage 3: Creative[/bold cyan]")
     creative_result = creative(strategy_result=strategy_result.model_dump(), brand=brand)
-    console.print(
+    status(
         "  Generated "
         f"{len(creative_result.headlines)} headlines, "
         f"{len(creative_result.ctas)} CTAs"
@@ -191,9 +192,9 @@ def run(
             raise typer.Abort()
 
     # Activation
-    console.print("\n[bold cyan]Stage 4: Activation[/bold cyan]")
+    status("\n[bold cyan]Stage 4: Activation[/bold cyan]")
     activation_result = activation(creative_result=creative_result.model_dump(), brand=brand)
-    console.print(
+    status(
         "  Planned "
         f"{len(activation_result.channels)} channels, "
         f"{len(activation_result.calendar)} calendar items"
@@ -215,7 +216,7 @@ def run(
         brand=brand,
         stages=full_result,
     )
-    console.print(f"\n[green]Campaign saved: {campaign_id}[/green]")
+    status(f"\n[green]Campaign saved: {campaign_id}[/green]")
 
     if brief_v1_output:
         if not voice_pack_id and not voice_pack_input:
@@ -242,26 +243,27 @@ def run(
         )
         write_brief_v1(brief_v1_output, brief_v1)
         full_result["brief_v1"] = brief_v1.model_dump(exclude_none=True, by_alias=True)
-        console.print(f"[green]brief.v1 saved: {brief_v1_output}[/green]")
+        status(f"[green]brief.v1 saved: {brief_v1_output}[/green]")
 
     # Output
     if output:
         output.write_text(json.dumps(full_result, indent=2, ensure_ascii=False))
-        console.print(f"Results saved to: {output}")
+        status(f"Results saved to: {output}")
     else:
-        emit(full_result, format)
+        emit(full_result, resolved_format)
 
 
 @plan_app.command("list")
 def list_cmd(
-    format: str = typer.Option("table", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """List saved campaigns."""
     from brand_os.plan.store import list_campaigns
 
     campaigns = list_campaigns()
+    resolved_format = pick_format(format, default="table")
 
-    if format == "table":
+    if resolved_format == "table":
         table = Table(title="Campaigns")
         table.add_column("ID")
         table.add_column("Brief")
@@ -279,20 +281,20 @@ def list_cmd(
             )
         console.print(table)
     else:
-        emit(campaigns, format)
+        emit(campaigns, resolved_format)
 
 
 @plan_app.command("resume")
 def resume(
     campaign_id: str = typer.Argument(..., help="Campaign ID to resume"),
-    format: str = typer.Option("json", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Resume a saved campaign."""
     from brand_os.plan.store import load_campaign
 
     campaign = load_campaign(campaign_id)
-    console.print(f"[bold]Loaded campaign: {campaign_id}[/bold]")
-    console.print(f"Brief: {campaign.get('brief', '')[:100]}")
-    console.print(f"Completed stages: {list(campaign.get('stages', {}).keys())}")
+    status(f"[bold]Loaded campaign: {campaign_id}[/bold]")
+    status(f"Brief: {campaign.get('brief', '')[:100]}")
+    status(f"Completed stages: {list(campaign.get('stages', {}).keys())}")
 
     emit(campaign, format)

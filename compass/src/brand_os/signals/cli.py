@@ -4,7 +4,7 @@ from __future__ import annotations
 import typer
 from rich.console import Console
 
-from brand_os.cli_utils import emit
+from brand_os.cli_utils import emit, pick_format, status
 
 signals_app = typer.Typer(help="Signal monitoring commands.")
 console = Console()
@@ -17,7 +17,7 @@ def fetch(
     query: str | None = typer.Option(None, "--query", "-q", help="Custom search query"),
     limit: int = typer.Option(20, "--limit", "-l", help="Max signals to fetch"),
     save: bool = typer.Option(True, "--save/--no-save", help="Save to history"),
-    format: str = typer.Option("json", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Fetch signals from a source."""
     from brand_os.core.brands import load_brand_config
@@ -26,25 +26,24 @@ def fetch(
 
     config = load_brand_config(brand)
 
-    # Build query from brand keywords if not provided
     if not query:
         keywords = config.get("keywords", [])
         name = config.get("name", brand)
         query = f"{name} OR " + " OR ".join(keywords[:5]) if keywords else name
 
-    console.print(f"Fetching signals for: {query}")
+    status(f"Fetching signals for: {query}")
 
     if source == "google_news":
         signals = fetch_google_news(query, limit=limit)
     else:
-        console.print(f"[red]Unknown source: {source}[/red]")
+        status(f"[red]Unknown source: {source}[/red]")
         raise typer.Exit(1)
 
-    console.print(f"Found {len(signals)} signals")
+    status(f"Found {len(signals)} signals")
 
     if save and signals:
         count = append_signals(brand, signals)
-        console.print(f"Saved {count} new signals to history")
+        status(f"Saved {count} new signals to history")
 
     emit(signals, format)
 
@@ -53,7 +52,7 @@ def fetch(
 def filter_cmd(
     brand: str = typer.Option(..., "--brand", "-b", help="Brand name"),
     min_score: float = typer.Option(0.1, "--min-score", "-m", help="Minimum relevance score"),
-    format: str = typer.Option("json", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Filter signals by relevance."""
     from brand_os.core.brands import load_brand_config
@@ -61,12 +60,9 @@ def filter_cmd(
     from brand_os.signals.relevance import filter_signals
 
     config = load_brand_config(brand)
-
-    # Get recent signals
     signals = query_signals(brand, limit=200)
-    console.print(f"Loaded {len(signals)} signals from history")
+    status(f"Loaded {len(signals)} signals from history")
 
-    # Filter by relevance
     filtered = filter_signals(
         signals,
         keywords=config.get("keywords", []),
@@ -75,7 +71,7 @@ def filter_cmd(
         min_score=min_score,
     )
 
-    console.print(f"Filtered to {len(filtered)} relevant signals")
+    status(f"Filtered to {len(filtered)} relevant signals")
 
     emit(filtered, format)
 
@@ -86,16 +82,16 @@ def history(
     query: str | None = typer.Option(None, "--query", "-q", help="Search query"),
     since: str | None = typer.Option(None, "--since", "-s", help="Date filter (ISO or '7d')"),
     limit: int = typer.Option(50, "--limit", "-l", help="Max results"),
-    format: str = typer.Option("json", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Query signal history."""
     from brand_os.signals.history import get_signal_count, query_signals
 
     total = get_signal_count(brand)
-    console.print(f"Total signals in history: {total}")
+    status(f"Total signals in history: {total}")
 
     signals = query_signals(brand, query=query, since=since, limit=limit)
-    console.print(f"Returning {len(signals)} signals")
+    status(f"Returning {len(signals)} signals")
 
     emit(signals, format)
 
@@ -106,26 +102,20 @@ def discover_subreddits(
     brand: str | None = typer.Option(None, "--brand", "-b", help="Discover for brand"),
     industry: str | None = typer.Option(None, "--industry", "-i", help="Industry/sector"),
     limit: int = typer.Option(15, "--limit", "-l", help="Max results"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
-    """Discover relevant subreddits.
-
-    Examples:
-        agentcy-compass signals discover-subreddits --query "AI startup"
-        agentcy-compass signals discover-subreddits --brand acme
-        agentcy-compass signals discover-subreddits --industry "B2B SaaS" --query "automation"
-    """
+    """Discover relevant subreddits."""
     from rich.table import Table
+
     from brand_os.signals.sources.reddit_discover import SubredditDiscovery
 
     discovery = SubredditDiscovery()
 
     if brand:
-        # Load brand config and discover
         from brand_os.core.config import load_brand_config
+
         config = load_brand_config(brand) or {}
-
-        console.print(f"[bold]Discovering subreddits for brand: {brand}[/bold]\n")
-
+        status(f"[bold]Discovering subreddits for brand: {brand}[/bold]")
         results = discovery.discover_for_brand(
             brand_name=config.get("name", brand),
             industry=industry or config.get("industry"),
@@ -134,17 +124,37 @@ def discover_subreddits(
             use_llm=True,
         )
     elif query:
-        console.print(f"[bold]Searching subreddits for: {query}[/bold]\n")
+        status(f"[bold]Searching subreddits for: {query}[/bold]")
         results = discovery.search(query, limit=limit)
     elif industry:
-        console.print(f"[bold]Searching subreddits for industry: {industry}[/bold]\n")
+        status(f"[bold]Searching subreddits for industry: {industry}[/bold]")
         results = discovery.search(industry, limit=limit)
     else:
-        console.print("[red]Provide --query, --brand, or --industry[/red]")
+        status("[red]Provide --query, --brand, or --industry[/red]")
         raise typer.Exit(1)
 
+    resolved_format = pick_format(format, default="table")
     if not results:
-        console.print("[yellow]No subreddits found[/yellow]")
+        if resolved_format == "table":
+            status("[yellow]No subreddits found[/yellow]")
+        else:
+            emit([], resolved_format)
+        return
+
+    payload = [
+        {
+            "name": sub.name,
+            "subscribers": sub.subscribers,
+            "active_users": sub.active_users,
+            "relevance_score": sub.relevance_score,
+            "description": sub.description,
+            "title": sub.title,
+        }
+        for sub in results[:limit]
+    ]
+
+    if resolved_format != "table":
+        emit(payload, resolved_format)
         return
 
     table = Table(title=f"Discovered Subreddits ({len(results)})")
@@ -160,12 +170,12 @@ def discover_subreddits(
             f"{sub.subscribers:,}",
             f"{sub.active_users:,}" if sub.active_users else "-",
             f"{sub.relevance_score:.2f}" if sub.relevance_score else "-",
-            (sub.description or sub.title)[:50] + "..." if len(sub.description or sub.title) > 50 else (sub.description or sub.title),
+            (sub.description or sub.title)[:50] + "..."
+            if len(sub.description or sub.title) > 50
+            else (sub.description or sub.title),
         )
 
     console.print(table)
-
-    # Show as YAML for easy copy to brand.yml
     console.print("\n[dim]Add to brand.yml:[/dim]")
     console.print("subreddits:")
     for sub in results[:10]:

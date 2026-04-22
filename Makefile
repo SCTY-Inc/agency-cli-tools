@@ -1,12 +1,23 @@
-.PHONY: install install-loom sync doctor check check-python check-loom test lint lint-full pipeline pipeline-fixtures
+.PHONY: install install-loom sync install-python-suite install-echo-simulation install-full-operator doctor check check-python check-loom test lint lint-full pipeline pipeline-fixtures
 
 # Install Python workspace members + repo-local dev tools
 install:
 	uv sync --all-extras --group dev
 
+# Install the base Python suite only (root CLI + protocols + vox + compass + echo base CLI + pulse)
+install-python-suite:
+	uv sync --group dev
+
+# Add the Echo simulation runtime (Python 3.11 only)
+install-echo-simulation:
+	uv sync --extra simulation
+
 # Install loom (TypeScript)
 install-loom:
 	cd loom/runtime && pnpm install
+
+# Install the full local operator stack
+install-full-operator: install-python-suite install-echo-simulation install-loom
 
 # Sync without optional extras, but keep repo-local dev tools available
 sync:

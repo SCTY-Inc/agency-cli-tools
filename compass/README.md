@@ -15,6 +15,14 @@ A CLI-first toolkit for managing brand identity, competitive intelligence, conte
 
 The package and CLI are Agentcy-branded, but canonical protocol lineage still keeps the historical `writer.repo` value for compatibility.
 
+Boundary note:
+- canonical ownership: `brief.v1`
+- preferred stage surfaces: `brand`, `signals`, `intel`, `plan`
+- secondary surfaces: `produce`, `eval`, `publish`, `monitor`
+- deprecated persona surface: use `agentcy-vox` for persona authoring/testing/export
+
+Use `agentcy-compass catalog --json` to inspect those boundaries machine-readably. Compatible data-producing commands now also honor a global `--json` flag in addition to the legacy `-f json` form, and `agentcy-compass --json-envelope ...` wraps successful compatible outputs in a normalized `{status, command, data}` envelope.
+
 agentcy-compass treats brands as code: version-controlled configurations, reproducible content pipelines, and automated quality gates. Instead of scattered tools and manual processes, you get a unified system where brand guidelines inform every piece of content.
 
 ## Why agentcy-compass?
@@ -53,17 +61,20 @@ uv sync --extra video      # Video generation
 # 1. Initialize a new brand
 agentcy compass brand init acme
 
-# 2. Create a brand persona
-agentcy compass persona create "A friendly B2B SaaS brand focused on developer tools" --as acme-voice
+# 2. Inspect boundaries / install expectations
+agentcy-compass catalog --json
 
-# 3. Generate content
-agentcy compass produce copy "Launching our new API" --brand acme --platform twitter
+# 3. Generate a canonical plan/brief path
+agentcy compass plan run "Launch our new API" --brand acme --json
 
-# 4. Evaluate against brand guidelines
-agentcy compass eval grade brands/acme/rubric.yml "Your draft content here"
+# 4. Ask for a normalized Compass-local success envelope
+agentcy-compass --json-envelope config profiles
 
-# 5. Queue and publish
-agentcy compass queue add "Your approved content" --brand acme --platform twitter
+# 5. Evaluate against brand guidelines
+agentcy compass --json eval grade "Your draft content here" --brand acme
+
+# 6. Queue and publish
+agentcy compass --json queue add "Your approved content" --brand acme --platform twitter
 agentcy compass publish post --brand acme
 ```
 
@@ -228,7 +239,7 @@ agentcy compass plan run "Increase caregiver response to a fall planning checkli
 ```
 
 This writes a canonical `brief.v1` payload that:
-- keeps `writer` fixed to `{ "repo": "agentcy", "module": "agentcy-compass" }`
+- keeps `writer` fixed to `{ "repo": "brand-os", "module": "agentcy-compass" }`
 - carries through the referenced `voice_pack_id` lineage for downstream loom handoff
 - stays aligned with `../protocols/brief.v1.schema.json` and the parent `protocols/examples/` fixtures
 
@@ -238,7 +249,7 @@ This writes a canonical `brief.v1` payload that:
 agentcy compass produce copy <topic>     # Generate platform copy
 agentcy compass produce thread <topic>   # Generate Twitter thread
 agentcy compass produce image <prompt>   # Generate image
-agentcy compass produce video <brief>    # Generate video
+agentcy compass produce video <brief>    # Video surface exists but returns an explicit unsupported error in this build
 agentcy compass produce explore <topic>  # Full multi-platform flow
 ```
 
@@ -289,7 +300,7 @@ src/brand_os/
 │   ├── decision.py     # Decision logging + audit trail
 │   ├── policy.py       # Policy engine + guardrails
 │   ├── learning.py     # Outcome tracking + metrics
-│   ├── llm.py          # LLM interface (Gemini, Anthropic)
+│   ├── llm.py          # LLM interface (Gemini, Anthropic, Claude CLI)
 │   └── storage.py      # Storage paths
 │
 ├── agents/             # Specialized AI agents
@@ -302,7 +313,7 @@ src/brand_os/
 │   └── notify.py       # Slack/email notifications
 │
 ├── workflows/          # Approval workflows
-│   └── approval.py     # State machine for decisions
+│   └── approval.py     # Central decision review state machine
 │
 ├── adapters/           # Format converters
 │   ├── brandos.py      # Internal format
@@ -317,7 +328,8 @@ src/brand_os/
 │   ├── enrichment.py   # External data enrichment
 │   ├── exporters.py    # Format exporters
 │   ├── learning.py     # Improvement suggestions
-│   └── optimization.py # DSPy/GEPA optimization
+│   ├── optimization.py # DSPy/GEPA optimization
+│   └── storage.py      # Shared persona path helpers
 │
 ├── intel/              # Competitive intelligence
 │   ├── pipeline.py     # Scraping pipeline
@@ -341,9 +353,8 @@ src/brand_os/
 │   ├── copy.py         # Text generation
 │   ├── queue.py        # Production queue
 │   ├── image/          # Image generation
-│   │   └── providers/  # Gemini, Reve
-│   └── video/          # Video generation
-│       └── providers/  # Replicate, Cartesia
+│   │   └── providers/  # Gemini active, Reve returns explicit unsupported status in this build
+│   └── video/          # Video generation entrypoint (currently explicit unsupported status)
 │
 ├── eval/               # Evaluation
 │   ├── grader.py       # Rubric grading
@@ -360,9 +371,9 @@ src/brand_os/
 │   ├── reports.py      # Report generation
 │   └── emailer.py      # Email delivery
 │
-└── server/             # API server
+└── server/             # API surface
     ├── api.py          # FastAPI REST API
-    └── mcp.py          # MCP server
+    └── mcp.py          # MCP stub (raises NotImplementedError in this build)
 ```
 
 ## Environment Variables
@@ -453,15 +464,18 @@ uv sync --extra server
 uvicorn brand_os.server.api:app --reload
 ```
 
-Or use the MCP server for AI assistant integration:
+The MCP entrypoint is present for surface completeness, but it is still an explicit stub in this build:
 
 ```bash
 python -m brand_os.server.mcp
+# NotImplementedError: MCP server is not implemented in this build
 ```
 
 ## Autonomous Loop (24/7 Operation)
 
 agentcy-compass can run autonomously, continuously monitoring signals and generating analysis.
+
+Unsupported decision types now escalate for human review instead of returning fake-success placeholders.
 
 ### Quick Deploy
 
@@ -470,8 +484,11 @@ agentcy-compass can run autonomously, continuously monitoring signals and genera
 git clone https://github.com/amadad/agentcy.git
 cd agentcy/compass
 
-# 2. Set API key (required for LLM analysis)
+# 2. Choose an LLM path for planning
 export GOOGLE_API_KEY=your_gemini_key
+# or use local Claude Code CLI instead of Gemini rate limits:
+export BRANDOPS_LLM_PROVIDER=claude-cli
+export CLAUDE_MODEL=sonnet
 
 # 3. Install and create a brand
 uv sync

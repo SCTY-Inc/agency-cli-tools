@@ -7,10 +7,15 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from brand_os.cli_utils import emit
+from brand_os.cli_utils import emit, pick_format, scope_note, status
 
-persona_app = typer.Typer(help="Persona management commands.")
+persona_app = typer.Typer(help="Persona management commands (deprecated; prefer agentcy-vox).")
 console = Console()
+
+
+@persona_app.callback()
+def persona_callback() -> None:
+    scope_note("agentcy-compass persona surfaces are deprecated; prefer agentcy-vox.")
 
 
 @persona_app.command("create")
@@ -19,7 +24,7 @@ def create(
     name: str | None = typer.Option(None, "--as", "-n", help="Name for the persona"),
     from_person: bool = typer.Option(False, "--from-person", help="Treat description as a real person's name"),
     from_role: bool = typer.Option(False, "--from-role", help="Treat description as a professional role"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format: json, yaml"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format: json, yaml"),
 ) -> None:
     """Create a new persona using AI generation."""
     from brand_os.persona.crud import create_persona
@@ -30,51 +35,53 @@ def create(
         from_person=from_person,
         from_role=from_role,
     )
-    emit(persona, format)
+    emit(persona, pick_format(format, default="yaml"))
 
 
 @persona_app.command("init")
 def init(
     name: str = typer.Argument(..., help="Name for the persona"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Create an empty persona template."""
     from brand_os.persona.crud import init_persona
 
     persona = init_persona(name)
-    console.print(f"Created persona template: {name}")
-    emit(persona, format)
+    status(f"Created persona template: {name}")
+    emit(persona, pick_format(format, default="yaml"))
 
 
 @persona_app.command("list")
 def list_personas(
-    format: str = typer.Option("table", "--format", "-f", help="Output format: table, json, yaml"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format: table, json, yaml"),
 ) -> None:
     """List all available personas."""
     from brand_os.persona.crud import list_personas as _list_personas
 
     names = _list_personas()
+    resolved_format = pick_format(format, default="table")
 
-    if format == "table":
+    if resolved_format == "table":
         table = Table(title="Personas")
         table.add_column("Name")
         for name in names:
             table.add_row(name)
         console.print(table)
-    else:
-        emit(names, format)
+        return
+
+    emit(names, resolved_format)
 
 
 @persona_app.command("show")
 def show(
     name: str = typer.Argument(..., help="Persona name"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Show a persona's details."""
     from brand_os.persona.crud import load_persona
 
     persona = load_persona(name)
-    emit(persona, format)
+    emit(persona, pick_format(format, default="yaml"))
 
 
 @persona_app.command("edit")
@@ -86,7 +93,7 @@ def edit(
 
     path = get_persona_path(name)
     if not path.exists():
-        console.print(f"[red]Persona not found: {name}[/red]")
+        status(f"[red]Persona not found: {name}[/red]")
         raise typer.Exit(1)
 
     typer.launch(str(path))
@@ -106,9 +113,9 @@ def delete(
             raise typer.Abort()
 
     if delete_persona(name):
-        console.print(f"Deleted persona: {name}")
+        status(f"Deleted persona: {name}")
     else:
-        console.print(f"[red]Persona not found: {name}[/red]")
+        status(f"[red]Persona not found: {name}[/red]")
         raise typer.Exit(1)
 
 
@@ -165,7 +172,7 @@ def export(
 
     if output:
         output.write_text(exported)
-        console.print(f"Exported to: {output}")
+        status(f"Exported to: {output}")
     else:
         console.print(exported)
 
@@ -174,13 +181,13 @@ def export(
 def enrich(
     name: str = typer.Argument(..., help="Persona name"),
     source: str = typer.Option("exa", "--source", "-s", help="Data source: exa"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Enrich a persona with external data."""
     from brand_os.persona.enrichment import enrich_persona
 
     persona = enrich_persona(name, source=source)
-    emit(persona, format)
+    emit(persona, pick_format(format, default="yaml"))
 
 
 @persona_app.command("mix")
@@ -188,7 +195,7 @@ def mix(
     name1: str = typer.Argument(..., help="First persona"),
     name2: str = typer.Argument(..., help="Second persona"),
     new_name: str = typer.Option(..., "--as", help="Name for the mixed persona"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Mix two personas into a new one."""
     from brand_os.core.llm import complete_json
@@ -218,14 +225,14 @@ Create a balanced blend that combines their best traits."""
     mixed["providers"] = {"default": "gpt-4o-mini"}
 
     save_persona(new_name, mixed)
-    emit(mixed, format)
+    emit(mixed, pick_format(format, default="yaml"))
 
 
 @persona_app.command("test")
 def test(
     name: str = typer.Argument(..., help="Persona name"),
     cases_file: Path | None = typer.Option(None, "--cases", "-c", help="JSON file with test cases"),
-    format: str = typer.Option("table", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Test persona consistency."""
     import json
@@ -235,7 +242,6 @@ def test(
     if cases_file:
         test_cases = json.loads(cases_file.read_text())
     else:
-        # Default test cases
         test_cases = [
             {"input": "Hello, how are you?"},
             {"input": "What do you think about this topic?"},
@@ -243,8 +249,9 @@ def test(
         ]
 
     results = test_persona_consistency(name, test_cases)
+    resolved_format = pick_format(format, default="table")
 
-    if format == "table":
+    if resolved_format == "table":
         console.print(f"[bold]Test Results for {name}[/bold]")
         console.print(f"Passed: {results['passed']}/{results['total']}")
 
@@ -255,29 +262,30 @@ def test(
         table.add_column("Status")
 
         for case in results["cases"]:
-            status = "[green]PASS[/green]" if case["passed"] else "[red]FAIL[/red]"
+            case_status = "[green]PASS[/green]" if case["passed"] else "[red]FAIL[/red]"
             table.add_row(
                 case["input"][:50],
                 str(case["is_consistent"]),
                 f"{case['confidence']:.2f}",
-                status,
+                case_status,
             )
         console.print(table)
-    else:
-        emit(results, format)
+        return
+
+    emit(results, resolved_format)
 
 
 @persona_app.command("optimize")
 def optimize(
     name: str = typer.Argument(..., help="Persona name"),
     method: str = typer.Option("dspy", "--method", "-m", help="Optimization method: dspy, gepa"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Optimize a persona using automated methods."""
     from brand_os.persona.optimization import optimize_persona
 
     result = optimize_persona(name, method=method)
-    emit(result, format)
+    emit(result, pick_format(format, default="yaml"))
 
 
 @persona_app.command("drift")
@@ -285,20 +293,20 @@ def drift(
     name: str = typer.Argument(..., help="Persona name"),
     response: str = typer.Argument(..., help="Response to check"),
     context: str | None = typer.Option(None, "--context", "-c", help="Conversation context"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Check if a response drifts from persona definition."""
     from brand_os.persona.drift import detect_drift
 
     result = detect_drift(name, response, context=context)
-    emit(result.model_dump(), format)
+    emit(result.model_dump(), pick_format(format, default="yaml"))
 
 
 @persona_app.command("learn")
 def learn(
     name: str = typer.Argument(..., help="Persona name"),
     apply: bool = typer.Option(False, "--apply", help="Apply suggested improvements"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Generate improvement suggestions from learning history."""
     from brand_os.persona.learning import apply_improvements, suggest_improvements
@@ -307,19 +315,20 @@ def learn(
 
     if apply:
         persona = apply_improvements(name, improvements)
-        console.print(f"[green]Applied improvements to {name}[/green]")
-        emit(persona, format)
-    else:
-        emit(improvements, format)
+        status(f"[green]Applied improvements to {name}[/green]")
+        emit(persona, pick_format(format, default="yaml"))
+        return
+
+    emit(improvements, pick_format(format, default="yaml"))
 
 
 @persona_app.command("critique")
 def critique(
     name: str = typer.Argument(..., help="Persona name"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Generate a critique of persona performance."""
     from brand_os.persona.learning import critique_persona
 
     result = critique_persona(name)
-    emit(result, format)
+    emit(result, pick_format(format, default="yaml"))

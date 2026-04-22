@@ -14,6 +14,15 @@ Brand ops CLI with autonomous execution. Signals, competitive intel, content pro
 
 The package and CLI are Agentcy-branded, but canonical protocol lineage still keeps the historical `writer.repo` value for compatibility.
 
+Boundary note:
+- canonical ownership: `brief.v1`
+- preferred stage surfaces: `brand`, `signals`, `intel`, `plan`
+- secondary surfaces: `produce`, `eval`, `publish`, `monitor`
+- deprecated persona surface: prefer `agentcy-vox`
+- use `agentcy-compass catalog --json` for the machine-readable boundary summary
+
+JSON note: compatible data-producing commands now honor a global `--json` flag in addition to legacy `-f json` / `--format json` forms. `--json-envelope` further wraps successful compatible outputs in a normalized `{status, command, data}` envelope. Interactive or richly formatted legacy surfaces may still prefer explicit `--format` values.
+
 **Architecture**: Human-over-the-loop - humans set policies and thresholds, system operates autonomously within those boundaries, exceptions escalated.
 
 ## Project Structure
@@ -30,7 +39,7 @@ src/brand_os/
 │   ├── decision.py     # Decision logging + audit trail
 │   ├── policy.py       # Policy engine + guardrails
 │   ├── learning.py     # Outcome tracking + self-improvement
-│   ├── llm.py          # LLM interface (Gemini, Anthropic)
+│   ├── llm.py          # LLM interface (Gemini, Anthropic, Claude CLI)
 │   ├── signals.py      # Signal utilities
 │   └── storage.py      # Storage paths
 ├── signals/            # Signal ingestion pipeline
@@ -48,17 +57,17 @@ src/brand_os/
 │   ├── write.py        # File output (audit trail)
 │   └── notify.py       # Slack/email notifications
 ├── workflows/          # Approval workflows
-│   └── approval.py     # State machine for decisions
+│   └── approval.py     # Central decision review state machine
 ├── agents/             # Specialized AI agents
 │   ├── base.py         # Base Agent protocol
 │   ├── market.py       # Market analyst (LLM-powered)
 │   └── threat.py       # Threat assessor
-├── persona/            # Persona management
+├── persona/            # Persona management + shared storage helpers
 ├── intel/              # Competitive intelligence
 ├── produce/            # Content production
 ├── eval/               # Content evaluation
 ├── publish/            # Social publishing
-└── server/             # API + MCP server
+└── server/             # API surface + explicit MCP stub
 
 brands/                 # Brand configurations
 ├── _template/          # Default template
@@ -79,6 +88,7 @@ uv sync --extra workflows    # Phase 1 features
 
 # Development
 uv run agentcy-compass --help        # Run CLI
+BRANDOPS_LLM_PROVIDER=claude-cli CLAUDE_MODEL=sonnet uv run agentcy-compass plan run "..." --brand givecare -f json
 uv run pytest                # Run tests
 uv run ruff check src/       # Lint
 uv run ruff format src/      # Format
@@ -270,17 +280,22 @@ Metrics tracked:
 - Never use `rm`; use `trash` instead
 - Test coverage required for core modules
 - Run `ruff check && ruff format` before commits
-- `brief.v1` writer: `repo = "agentcy"`, `module = "agentcy-compass"`
+- `brief.v1` writer: `repo = "brand-os"`, `module = "agentcy-compass"`
 - Prefer docs/proof-note corrections over CLI/code churn for loop-10 naming work
 - Do not imply rename-readiness from `writer.module` alone; package/import/CLI/runtime surfaces are still separate blockers
 - Treat `persona`, `produce`, `eval`, `publish`, `queue`, `monitor`, `server`, and residual `cli-agency` lineage as boundary blockers, not cosmetic naming issues
+- Unsupported autonomous actions must escalate via `ManualExecutionRequired`; do not restore fake-success placeholders.
+- Optional surfaces such as video generation, the Reve provider, MCP server entrypoint, and loop background mode are explicit unsupported paths in this build.
 
 ## Environment Variables
 
 | Variable | Purpose |
 |----------|---------|
-| `GOOGLE_API_KEY` | Gemini LLM |
-| `ANTHROPIC_API_KEY` | Claude LLM |
+| `GOOGLE_API_KEY` | Gemini API provider |
+| `ANTHROPIC_API_KEY` | Anthropic API provider |
+| `BRANDOPS_LLM_PROVIDER` | Preferred planning provider (`gemini`, `anthropic`, `claude-cli`, `mock`) |
+| `BRANDOPS_LLM_MODEL` | Compass model override when the provider supports model selection |
+| `CLAUDE_MODEL` | Claude CLI model alias for local operator runs |
 | `OPENAI_API_KEY` | OpenAI/LiteLLM |
 | `SLACK_WEBHOOK_URL` | Approval notifications |
 

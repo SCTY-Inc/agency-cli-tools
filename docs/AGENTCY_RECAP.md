@@ -1,8 +1,10 @@
 # agentcy recap
 
-Date: 2026-04-12
+Date: 2026-04-20
 
 Note: literal repo directory renames to the `agentcy-*` names landed on 2026-04-12. Historical mentions of `cli-prsna`, `brand-os`, `cli-mirofish`, `cli-phantom`, and `cli-metrics` below refer to former directory names unless explicitly called out.
+
+Current live note (2026-04-20): the active monorepo members are `protocols`, `agentcy-vox`, `agentcy-compass`, `agentcy-echo`, `agentcy-loom`, and `agentcy-pulse`. Earlier planning references to a separate `agentcy-lab` are now superseded by the live `agentcy-pulse` calibration/study surfaces. The root `agentcy` operator layer now exposes `doctor`, `pipeline run`, `pipeline update`, and `pipeline study`; preview bundles land in module-first folders, can use stable names via `--pipeline-id`, and record honest preview-only Pulse state instead of pretending canonical `performance.v1` exists.
 
 ## Goal
 
@@ -17,21 +19,37 @@ The goal is **not** to merge everything into one monolith.
 
 Current target family in lowercase kebab-case:
 
+- `agentcy-protocols`
 - `agentcy-vox`
 - `agentcy-compass`
 - `agentcy-echo`
 - `agentcy-loom`
 - `agentcy-pulse`
-- `agentcy-lab`
 
 ## Current repo directories after rename
 
+- `protocols` (shared schema/example/adapter authority)
 - `agentcy-vox` (formerly `cli-prsna`)
 - `agentcy-compass` (formerly `brand-os`)
 - `agentcy-echo` (formerly `cli-mirofish`)
 - `agentcy-loom` (formerly `cli-phantom` / Loom runtime)
-- `agentcy-pulse` (formerly `cli-metrics`)
-- `agentcy-lab` (new shared eval/autoresearch repo)
+- `agentcy-pulse` (formerly `cli-metrics`; now also carries the bounded study/calibration work that earlier planning described as `agentcy-lab`)
+
+## Current operator surface
+
+The root dispatcher now acts as the bounded control plane over the canonical module writers:
+- `agentcy catalog --json` describes suite/member ownership, install profiles, and positioning metadata in one root envelope
+- `agentcy quickstart --profile ... --json` prints the smallest install path for a chosen suite profile
+- `agentcy member <member> --json ...` normalizes member responses behind one root envelope even when native member JSON differs
+- `agentcy pipeline run --mode preview` writes one module-first bundle under `artifacts/pipelines/<pipeline_id>/`
+- `--pipeline-id` allows stable operator folders such as `artifacts/pipelines/givecare-launch-01/`
+- root `--provider` / `--model` overrides still forward to members that honor `LLM_PROVIDER` / `CLAUDE_MODEL`, and compatible Compass runs also receive `BRANDOPS_LLM_PROVIDER` / `BRANDOPS_LLM_MODEL`
+- preview mode writes `pulse/preview.json` when Loom only produced a dry run, instead of fabricating canonical measurement output
+
+Repo-local operator evidence now includes:
+- `agentcy-echo` run-local `eval/run_eval.v1.json` and `logs/llm_telemetry.jsonl`
+- auto-written `bundle_manifest.json` and `reports/operator_report.md` at the pipeline root
+- clean full Echo CLI exits via the non-interactive `--no-wait` simulation path
 
 ## Module roles
 
@@ -63,6 +81,10 @@ Does not own:
 - publishing runtime
 - persona internals
 
+Operator note:
+- `agentcy-compass catalog --json` exposes its preferred boundaries machine-readably
+- compatible Compass data commands now support both global `--json` preference and `--json-envelope` normalized success envelopes
+
 ### `agentcy-echo`
 Foresight / scenario simulation / predicted reaction layer.
 
@@ -92,48 +114,43 @@ Does not own:
 - analytics
 
 ### `agentcy-pulse`
-Analytics / attribution / feedback layer.
+Analytics / attribution / calibration / study layer.
 
 Owns:
 - performance snapshots
 - attribution records
 - performance summaries
-- drift feedback signals
+- calibration reports
+- repo-local study synthesis that can combine canonical artifacts with echo/vox sidecars
 
 Does not own:
 - publishing
 - strategy authoring
 - persona authoring
 
-### `agentcy-lab`
-Shared eval + autoresearch plane across the whole family.
-
-Owns:
-- experiment campaigns
-- keep/revert optimization loops
-- eval-backed promotion decisions
-- optimization reports
-
-Does not own production state for the product modules.
+Historical note: earlier planning used a separate `agentcy-lab` for eval/autoresearch ideas. In the live monorepo, the bounded calibration/study slice currently lives under `agentcy-pulse` instead.
 
 ## High-level flow
 
 ```text
-agentcy-vox -> agentcy-compass -> agentcy-echo -> agentcy-loom -> agentcy-pulse
-                         ^                                      |
-                         |--------------------------------------|
-                                 learnings / feedback
+protocols define the shared contracts
 
-agentcy-lab sits across all of them.
+agentcy-vox -> agentcy-compass -> agentcy-echo
+                     |                |
+                     |                v
+                     +------------> agentcy-loom -> agentcy-pulse
+                                              ^            |
+                                              |------------|
+                                               learnings / feedback
 ```
 
 More concretely:
+- `protocols` defines the shared family artifact contracts
 - `vox` exports voice constraints
 - `compass` creates briefs
-- `echo` pressure-tests scenarios/messages
-- `loom` executes and publishes
-- `pulse` measures reality
-- `lab` improves each layer through eval-backed loops
+- `echo` pressure-tests scenarios/messages and can emit repo-local run-shape eval sidecars
+- `loom` executes and publishes from the canonical brief
+- `pulse` measures reality and can synthesize repo-local study output from canonical artifacts plus echo/vox sidecars
 
 ## Core architecture rules
 
@@ -177,8 +194,8 @@ Recommended default:
 - `agentcy-compass` -> Python
 - `agentcy-echo` -> Python
 - `agentcy-loom` -> TypeScript
-- `agentcy-pulse` -> choose pragmatically later
-- `agentcy-lab` -> language-agnostic / command-driven
+- `agentcy-pulse` -> Python
+- `protocols` -> schema/docs/adapters, language-agnostic by design
 
 ## Important repo-specific observations
 
@@ -327,10 +344,10 @@ Good first concrete work:
 
 When restarting, use something close to:
 
-> Read `AGENTCY_RECAP.md`. Treat the current repo family as:
-> `agentcy-vox`, `agentcy-compass`, `agentcy-echo`, `agentcy-loom`, `agentcy-pulse`, and `agentcy-lab`.
+> Read `AGENTCY_RECAP.md`. Treat the current live monorepo as:
+> `protocols`, `agentcy-vox`, `agentcy-compass`, `agentcy-echo`, `agentcy-loom`, and `agentcy-pulse`.
 > Do not propose language rewrites or a monolith. Protocol first.
-> Identify the next smallest high-value task to clarify roles, boundaries, or protocol handoffs, then implement or draft it.
+> Keep canonical schemas narrow, keep richer eval/study data repo-local when possible, and identify the next smallest high-value task to clarify roles, boundaries, or protocol handoffs.
 
 ## Session bottom line
 
@@ -341,5 +358,5 @@ The main conclusion of this session:
 - the first shared thing should be protocol, not MCP
 - the stack should remain polyglot for now
 - `agentcy-echo` is a real foresight/simulation layer
-- `agentcy-lab` should be a shared eval/autoresearch plane
+- `agentcy-pulse` is the live bounded calibration/study layer; richer eval/study data should stay repo-local unless a canonical seam truly needs widening
 - for near-term leverage, use `pi-web-access` + `pi-subagents` instead of building custom infrastructure first

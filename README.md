@@ -38,6 +38,57 @@ uv sync --all-extras --group dev
 cd loom/runtime && pnpm install
 ```
 
+## Best fit
+
+Agentcy is best when you need a protocol-first workflow stack rather than a single embedded SDK:
+
+- persona → brief → forecast → execution → measurement pipelines
+- human-and-agent collaboration over stable JSON/file handoffs
+- resumable operator workflows with explicit artifacts and lineage
+
+It is not yet the best fit for:
+
+- non-technical one-click onboarding
+- teams that only want a single import-and-go library
+
+## Install profiles
+
+The suite is consumable in layers:
+
+```bash
+# Base Python suite: root CLI + protocols + vox + compass + echo base CLI + pulse
+uv sync --group dev
+# or: make install-python-suite
+
+# Full Echo simulation runtime (Python 3.11 only)
+uv sync --extra simulation
+# or: make install-echo-simulation
+
+# Loom runtime (Node)
+cd loom/runtime && pnpm install
+# or: make install-loom
+
+# Full local operator stack
+make install-full-operator
+```
+
+Published package contours:
+
+- `agentcy-protocols` — closest thing to a drop-in library layer
+- `agentcy-*` member CLIs — stage-owned workflow tools
+- `agentcy` — umbrella dispatcher and pipeline orchestrator
+
+The umbrella package is therefore best understood as an operator CLI suite, not a single drop-in SDK.
+
+Useful discovery commands:
+
+```bash
+agentcy catalog --json
+agentcy quickstart --profile full-operator --json
+agentcy doctor --json
+agentcy member compass --json plan list
+```
+
 ## Test it
 
 ```bash
@@ -121,9 +172,9 @@ uv run agentcy-pulse calibrate --forecast /tmp/forecast.json --performance /tmp/
 
 ## Current status
 
-- Root dispatcher: healthy, now probes member reachability instead of only binary presence; ships `pipeline run` / `pipeline update` / `pipeline study` helpers, supports stable named bundles via `--pipeline-id`, writes module-first preview bundles (`vox/`, `compass/`, `echo/`, `loom/`, `pulse/`, `reports/`), and forwards root-level `--provider` / `--model` overrides to members, including Compass via `BRANDOPS_LLM_PROVIDER` when applicable
+- Root dispatcher: healthy, now probes member reachability instead of only binary presence; ships `pipeline run` / `pipeline update` / `pipeline study` helpers, supports stable named bundles via `--pipeline-id`, writes module-first preview bundles (`vox/`, `compass/`, `echo/`, `loom/`, `pulse/`, `reports/`), forwards root-level `--provider` / `--model` overrides to members, including Compass via `BRANDOPS_LLM_PROVIDER` when applicable, and now exposes `agentcy member <member> --json ...` as a normalized wrapper over member-local JSON differences
 - Vox: healthy; structured eval tiers and saved eval-report review flow now ship in the CLI
-- Compass: healthy for package/CLI + planning surfaces; stage outputs are normalized before validation, activation coercion now tolerates numeric week/budget fields, and local operator runs can use `claude-cli` / `sonnet` instead of falling back to mock on Gemini rate limits
+- Compass: healthy for package/CLI + planning surfaces; stage outputs are normalized before validation, activation coercion now tolerates numeric week/budget fields, local operator runs can use `claude-cli` / `sonnet` instead of falling back to mock on Gemini rate limits, and compatible data-producing commands now support both `--json` preference and `--json-envelope` normalized success envelopes
 - Echo: base CLI healthy; completed runs now emit a repo-local `run_eval` sidecar alongside canonical forecast export, the simulation-config stage now seeds taxonomy-driven `scenario_buckets` into aligned initial reaction lanes, CLI automation forces the simulation subprocess to exit instead of lingering in command-waiting mode, and the single-platform scripts emit action logs for downstream timeline/report assembly
 - Loom: help and runtime tests no longer hard-fail when native `canvas` is unavailable; social rendering falls back to SVG/resvg
 - Pulse: supports legacy bare adapt invocation, standardized `--json` envelopes, and a `study` command that ingests optional echo/vox eval sidecars, including echo synthetic-signal metrics such as coverage, local diversity, complexity, and heuristic critic rejection rate

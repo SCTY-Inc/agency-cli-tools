@@ -5,7 +5,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from brand_os.cli_utils import emit
+from brand_os.cli_utils import emit, pick_format, status
 
 publish_app = typer.Typer(help="Social publishing commands.")
 queue_cli_app = typer.Typer(help="Queue management commands.")
@@ -72,7 +72,7 @@ def post(
 
 @publish_app.command("platforms")
 def platforms(
-    format: str = typer.Option("table", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """List available platforms and their status."""
     from brand_os.publish.platforms import list_platforms
@@ -80,8 +80,9 @@ def platforms(
 
     available = list_platforms()
     rate_status = get_rate_status()
+    resolved_format = pick_format(format, default="table")
 
-    if format == "table":
+    if resolved_format == "table":
         table = Table(title="Platforms")
         table.add_column("Platform")
         table.add_column("Available")
@@ -104,7 +105,7 @@ def platforms(
             "available": available,
             "rate_status": rate_status,
         }
-        emit(data, format)
+        emit(data, resolved_format)
 
 
 # Queue subcommands
@@ -113,13 +114,13 @@ def queue_add(
     content: str = typer.Argument(..., help="Content to queue"),
     brand: str = typer.Option(..., "--brand", "-b", help="Brand name"),
     platform: str | None = typer.Option(None, "--platform", "-p", help="Target platform"),
-    format: str = typer.Option("json", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Add content to the queue."""
     from brand_os.publish.queue import add_to_queue
 
     item = add_to_queue(brand, content, platform=platform)
-    console.print(f"Added to queue: {item.id}")
+    status(f"Added to queue: {item.id}")
     emit(item.model_dump(), format)
 
 
@@ -127,14 +128,15 @@ def queue_add(
 def queue_list(
     brand: str = typer.Option(..., "--brand", "-b", help="Brand name"),
     status: str | None = typer.Option(None, "--status", "-s", help="Filter by status"),
-    format: str = typer.Option("table", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """List queued content."""
     from brand_os.publish.queue import get_queue
 
     items = get_queue(brand, status=status)
+    resolved_format = pick_format(format, default="table")
 
-    if format == "table":
+    if resolved_format == "table":
         table = Table(title=f"Queue ({brand})")
         table.add_column("ID")
         table.add_column("Platform")
@@ -153,24 +155,24 @@ def queue_list(
 
         console.print(table)
     else:
-        emit([item.model_dump() for item in items], format)
+        emit([item.model_dump() for item in items], resolved_format)
 
 
 @queue_cli_app.command("show")
 def queue_show(
     item_id: str = typer.Argument(..., help="Item ID"),
     brand: str = typer.Option(..., "--brand", "-b", help="Brand name"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Show a queue item."""
     from brand_os.publish.queue import get_queue_item
 
     item = get_queue_item(brand, item_id)
     if not item:
-        console.print(f"[red]Item not found: {item_id}[/red]")
+        status(f"[red]Item not found: {item_id}[/red]")
         raise typer.Exit(1)
 
-    emit(item.model_dump(), format)
+    emit(item.model_dump(), format, default="yaml")
 
 
 @queue_cli_app.command("update")

@@ -123,7 +123,9 @@ def build_study_report(
             report["risks"].append("one agent dominated simulated activity")
         coverage_score = metrics.get("coverage_score")
         if isinstance(coverage_score, (int, float)) and coverage_score < 0.5:
-            report["risks"].append("synthetic coverage stayed narrow across the configured run space")
+            report["risks"].append(
+                "synthetic coverage stayed narrow across the configured run space"
+            )
         local_diversity_score = metrics.get("local_diversity_score")
         if isinstance(local_diversity_score, (int, float)) and local_diversity_score < 0.4:
             report["risks"].append("synthetic coverage stayed narrow within each covered scenario")

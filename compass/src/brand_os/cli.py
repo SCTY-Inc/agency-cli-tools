@@ -6,7 +6,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from brand_os.cli_utils import emit
+from brand_os.cli_utils import emit, is_json_output, pick_format, set_output_mode, status
 
 # Main app
 app = typer.Typer(
@@ -15,6 +15,22 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 console = Console()
+
+
+@app.callback()
+def main(
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Prefer JSON output across compatible commands.",
+    ),
+    json_envelope: bool = typer.Option(
+        False,
+        "--json-envelope",
+        help="Emit normalized JSON envelopes for compatible commands.",
+    ),
+) -> None:
+    set_output_mode(json_output=json_output, envelope=json_envelope)
 
 # Import and register subcommand groups
 from brand_os.persona.cli import persona_app
@@ -46,6 +62,41 @@ brand_app = typer.Typer(help="Brand management commands.")
 app.add_typer(brand_app, name="brand")
 
 
+@app.command("catalog")
+def catalog() -> None:
+    """Describe Compass ownership boundaries and preferred surfaces."""
+    emit(
+        {
+            "artifact_owner": "brief.v1",
+            "core_stage": "strategy and brief generation",
+            "preferred_surfaces": [
+                "brand",
+                "signals",
+                "intel",
+                "plan",
+            ],
+            "secondary_surfaces": [
+                "produce",
+                "eval",
+                "publish",
+                "monitor",
+            ],
+            "deprecated_surfaces": [
+                {
+                    "command_group": "persona",
+                    "replacement": "agentcy-vox",
+                    "reason": "persona authoring and testing now belong to vox",
+                }
+            ],
+            "notes": [
+                "Compass is the canonical writer for brief.v1.",
+                "Use agentcy-vox for persona creation, testing, and export.",
+                "Use agentcy-loom for execution/review/publish runtime ownership.",
+            ],
+        }
+    )
+
+
 @brand_app.command("init")
 def brand_init(
     name: str = typer.Argument(..., help="Brand name"),
@@ -65,7 +116,10 @@ def brand_init(
     brand_dir = brands_dir / name
 
     if brand_dir.exists():
-        console.print(f"[red]Brand already exists: {name}[/red]")
+        if is_json_output():
+            emit({"created": False, "brand": name, "error": "brand already exists"})
+        else:
+            status(f"[red]Brand already exists: {name}[/red]")
         raise typer.Exit(1)
 
     # Create from template
@@ -118,13 +172,16 @@ red_flags:
 """
         (brand_dir / "rubric.yml").write_text(rubric_yml)
 
-    console.print(f"[green]Created brand: {name}[/green]")
-    console.print(f"Location: {brand_dir}")
+    if is_json_output():
+        emit({"created": True, "brand": name, "path": str(brand_dir)})
+    else:
+        status(f"[green]Created brand: {name}[/green]")
+        status(f"Location: {brand_dir}")
 
 
 @brand_app.command("list")
 def brand_list(
-    format: str = typer.Option("table", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """List all available brands."""
     from rich.table import Table
@@ -132,8 +189,9 @@ def brand_list(
     from brand_os.core.brands import discover_brands, get_brand_dir
 
     brands = discover_brands()
+    resolved_format = pick_format(format, default="table")
 
-    if format == "table":
+    if resolved_format == "table":
         table = Table(title="Brands")
         table.add_column("Name")
         table.add_column("Path")
@@ -143,19 +201,19 @@ def brand_list(
 
         console.print(table)
     else:
-        emit(brands, format)
+        emit(brands, resolved_format)
 
 
 @brand_app.command("show")
 def brand_show(
     name: str = typer.Argument(..., help="Brand name"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Show brand configuration."""
     from brand_os.core.brands import load_brand_config
 
     config = load_brand_config(name)
-    emit(config, format)
+    emit(config, format, default="yaml")
 
 
 @brand_app.command("edit")
@@ -173,7 +231,7 @@ def brand_edit(
             typer.launch(str(config_path))
             return
 
-    console.print(f"[red]Brand config not found: {name}[/red]")
+    status(f"[red]Brand config not found: {name}[/red]")
     raise typer.Exit(1)
 
 
@@ -186,13 +244,27 @@ def brand_validate(
 
     try:
         profile = load_brand_profile(name)
-        console.print(f"[green]Brand '{name}' is valid[/green]")
-        console.print(f"  Name: {profile.identity.name}")
-        console.print(f"  Traits: {len(profile.identity.traits)}")
-        console.print(f"  Keywords: {len(profile.keywords or [])}")
     except Exception as e:
-        console.print(f"[red]Validation failed: {e}[/red]")
+        if is_json_output():
+            emit({"valid": False, "brand": name, "error": str(e)})
+        else:
+            status(f"[red]Validation failed: {e}[/red]")
         raise typer.Exit(1)
+
+    payload = {
+        "valid": True,
+        "brand": name,
+        "name": profile.identity.name,
+        "traits": len(profile.identity.traits),
+        "keywords": len(profile.keywords or []),
+    }
+    if is_json_output():
+        emit(payload)
+    else:
+        status(f"[green]Brand '{name}' is valid[/green]")
+        status(f"  Name: {profile.identity.name}")
+        status(f"  Traits: {len(profile.identity.traits)}")
+        status(f"  Keywords: {len(profile.keywords or [])}")
 
 
 # Config management commands
@@ -223,12 +295,17 @@ def config_env() -> None:
     table.add_column("Purpose")
     table.add_column("Status")
 
+    rows = []
     for var, purpose in env_vars:
         value = os.getenv(var)
-        status = "[green]Set[/green]" if value else "[red]Not set[/red]"
-        table.add_row(var, purpose, status)
+        row_status = "[green]Set[/green]" if value else "[red]Not set[/red]"
+        table.add_row(var, purpose, row_status)
+        rows.append({"variable": var, "purpose": purpose, "set": bool(value)})
 
-    console.print(table)
+    if is_json_output():
+        emit({"variables": rows})
+    else:
+        status(table)
 
 
 @config_app.command("profiles")
@@ -237,11 +314,20 @@ def config_profiles() -> None:
     from brand_os.core.config import get_config
 
     config = get_config()
-    console.print("[bold]Current Configuration[/bold]")
-    console.print(f"  Brands dir: {config.brands_dir}")
-    console.print(f"  Data dir: {config.data_dir}")
-    console.print(f"  Default provider: {config.default_provider}")
-    console.print(f"  Default model: {config.default_model or 'auto'}")
+    payload = {
+        "brands_dir": str(config.brands_dir),
+        "data_dir": str(config.data_dir),
+        "default_provider": config.default_provider,
+        "default_model": config.default_model or "auto",
+    }
+    if is_json_output():
+        emit(payload)
+    else:
+        status("[bold]Current Configuration[/bold]")
+        status(f"  Brands dir: {config.brands_dir}")
+        status(f"  Data dir: {config.data_dir}")
+        status(f"  Default provider: {config.default_provider}")
+        status(f"  Default model: {config.default_model or 'auto'}")
 
 
 # Version command
@@ -250,7 +336,10 @@ def version() -> None:
     """Show version information."""
     from brand_os import __version__
 
-    console.print(f"agentcy-compass v{__version__}")
+    if is_json_output():
+        emit({"version": __version__})
+    else:
+        status(f"agentcy-compass v{__version__}")
 
 
 if __name__ == "__main__":

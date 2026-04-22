@@ -6,7 +6,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from brand_os.cli_utils import emit
+from brand_os.cli_utils import emit, status
 
 produce_app = typer.Typer(help="Content production commands.")
 console = Console()
@@ -100,7 +100,7 @@ def video_cmd(
     duration: int = typer.Option(30, "--duration", "-d", help="Duration in seconds"),
     format: str = typer.Option("json", "--format", "-f", help="Output format"),
 ) -> None:
-    """Generate a video (experimental)."""
+    """Return the explicit unsupported result for the current video surface."""
     from brand_os.produce.video import generate_video
 
     result = generate_video(brief=brief, brand=brand, duration=duration)
@@ -142,7 +142,7 @@ def explore_cmd(
     results = []
 
     for platform in platform_list:
-        console.print(f"Generating {platform} content...")
+        status(f"Generating {platform} content...")
 
         result = generate_copy(
             topic=topic,
@@ -157,6 +157,6 @@ def explore_cmd(
 
         if add_to_queue and result.get("main"):
             enqueue(brand, result["main"], platform=platform)
-            console.print(f"  Added to queue")
+            status("  Added to queue")
 
     emit(results, format)

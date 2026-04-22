@@ -7,7 +7,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from brand_os.cli_utils import emit
+from brand_os.cli_utils import emit, pick_format, status
 
 eval_app = typer.Typer(help="Content evaluation commands.")
 console = Console()
@@ -18,7 +18,7 @@ def grade(
     text: str = typer.Argument(..., help="Text to grade (or - for stdin)"),
     brand: str | None = typer.Option(None, "--brand", "-b", help="Brand name for rubric"),
     rubric_file: Path | None = typer.Option(None, "--rubric", "-r", help="Custom rubric file"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Grade content against a rubric."""
     import sys
@@ -28,11 +28,9 @@ def grade(
     from brand_os.eval.learnings import log_evaluation
     from brand_os.eval.rubric import load_rubric, parse_rubric
 
-    # Read from stdin if text is -
     if text == "-":
         text = sys.stdin.read()
 
-    # Load rubric
     rubric = None
     if rubric_file:
         rubric = load_rubric(rubric_file)
@@ -43,12 +41,11 @@ def grade(
 
     result = grade_content(text, rubric=rubric)
 
-    # Log for learning
     if brand:
         log_evaluation(brand, text, result.model_dump())
 
-    # Display
-    if format == "table":
+    resolved_format = pick_format(format, default="yaml")
+    if resolved_format == "table":
         console.print(f"[bold]Overall Score: {result.overall_score:.2f}[/bold]")
         console.print(f"Passed: {'[green]Yes[/green]' if result.passed else '[red]No[/red]'}")
         console.print()
@@ -60,22 +57,23 @@ def grade(
         table.add_column("Feedback")
 
         for dim in result.dimension_scores:
-            status = "[green]PASS[/green]" if dim.passed else "[red]FAIL[/red]"
-            table.add_row(dim.name, f"{dim.score:.2f}", status, dim.feedback[:50])
+            dimension_status = "[green]PASS[/green]" if dim.passed else "[red]FAIL[/red]"
+            table.add_row(dim.name, f"{dim.score:.2f}", dimension_status, dim.feedback[:50])
 
         console.print(table)
 
         if result.red_flags_found:
             console.print("\n[red]Red Flags:[/red]")
-            for rf in result.red_flags_found:
-                console.print(f"  - {rf}")
+            for red_flag in result.red_flags_found:
+                console.print(f"  - {red_flag}")
 
         if result.suggestions:
             console.print("\n[yellow]Suggestions:[/yellow]")
-            for s in result.suggestions:
-                console.print(f"  - {s}")
-    else:
-        emit(result.model_dump(), format)
+            for suggestion in result.suggestions:
+                console.print(f"  - {suggestion}")
+        return
+
+    emit(result.model_dump(), resolved_format)
 
 
 @eval_app.command("drift")
@@ -83,45 +81,50 @@ def drift(
     persona: str = typer.Argument(..., help="Persona name"),
     response: str = typer.Argument(..., help="Response to check"),
     context: str | None = typer.Option(None, "--context", "-c", help="Conversation context"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Check if a response drifts from persona definition."""
     from brand_os.persona.drift import detect_drift
 
     result = detect_drift(persona, response, context=context)
+    resolved_format = pick_format(format, default="yaml")
 
-    if format == "table":
-        console.print(f"[bold]Consistent: {'[green]Yes[/green]' if result.is_consistent else '[red]No[/red]'}[/bold]")
+    if resolved_format == "table":
+        console.print(
+            f"[bold]Consistent: {'[green]Yes[/green]' if result.is_consistent else '[red]No[/red]'}[/bold]"
+        )
         console.print(f"Confidence: {result.confidence:.2f}")
         console.print(f"Voice Match: {result.voice_match:.2f}")
 
         if result.boundary_violations:
             console.print("\n[red]Boundary Violations:[/red]")
-            for v in result.boundary_violations:
-                console.print(f"  - {v}")
+            for violation in result.boundary_violations:
+                console.print(f"  - {violation}")
 
         if result.suggestions:
             console.print("\n[yellow]Suggestions:[/yellow]")
-            for s in result.suggestions:
-                console.print(f"  - {s}")
-    else:
-        emit(result.model_dump(), format)
+            for suggestion in result.suggestions:
+                console.print(f"  - {suggestion}")
+        return
+
+    emit(result.model_dump(), resolved_format)
 
 
 @eval_app.command("learn")
 def learn(
     brand: str = typer.Option(..., "--brand", "-b", help="Brand name"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Aggregate learnings from evaluation history."""
     from brand_os.eval.learnings import aggregate_learnings, load_eval_history
 
     history = load_eval_history(brand)
-    console.print(f"Analyzing {len(history)} evaluations...")
+    status(f"Analyzing {len(history)} evaluations...")
 
     learnings = aggregate_learnings(brand)
+    resolved_format = pick_format(format, default="yaml")
 
-    if format == "table":
+    if resolved_format == "table":
         if learnings.get("weak_dimensions"):
             console.print("\n[bold]Weak Dimensions:[/bold]")
             for dim in learnings["weak_dimensions"]:
@@ -134,10 +137,11 @@ def learn(
 
         if learnings.get("recommendations"):
             console.print("\n[bold]Recommendations:[/bold]")
-            for rec in learnings["recommendations"]:
-                console.print(f"  - {rec}")
-    else:
-        emit(learnings, format)
+            for recommendation in learnings["recommendations"]:
+                console.print(f"  - {recommendation}")
+        return
+
+    emit(learnings, resolved_format)
 
 
 @eval_app.command("heal")
@@ -146,7 +150,7 @@ def heal(
     brand: str | None = typer.Option(None, "--brand", "-b", help="Brand name for rubric"),
     max_iterations: int = typer.Option(3, "--max-iter", "-n", help="Maximum iterations"),
     target: float = typer.Option(0.8, "--target", "-t", help="Target score"),
-    format: str = typer.Option("yaml", "--format", "-f", help="Output format"),
+    format: str | None = typer.Option(None, "--format", "-f", help="Output format"),
 ) -> None:
     """Iteratively improve content until it passes."""
     from brand_os.core.brands import load_brand_rubric
@@ -159,7 +163,7 @@ def heal(
         if rubric_data:
             rubric = parse_rubric(rubric_data)
 
-    console.print(f"Starting healing loop (max {max_iterations} iterations, target {target})...")
+    status(f"Starting healing loop (max {max_iterations} iterations, target {target})...")
 
     result = heal_content(
         text,
@@ -169,8 +173,10 @@ def heal(
     )
 
     if result["success"]:
-        console.print(f"[green]Success![/green] Achieved {result['final_score']:.2f} in {result['iterations']} iterations")
+        status(
+            f"[green]Success![/green] Achieved {result['final_score']:.2f} in {result['iterations']} iterations"
+        )
     else:
-        console.print(f"[yellow]Did not reach target.[/yellow] Final score: {result['final_score']:.2f}")
+        status(f"[yellow]Did not reach target.[/yellow] Final score: {result['final_score']:.2f}")
 
-    emit(result, format)
+    emit(result, pick_format(format, default="yaml"))

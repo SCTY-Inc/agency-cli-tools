@@ -11,7 +11,7 @@ Agent CLI suite. Six tools that chain sequentially through a shared protocol lay
 | `compass/` | `agentcy-compass` | Brand ops — signals → plan → produce → publish |
 | `echo/` | `agentcy-echo` | Swarm prediction — docs + requirement → social forecast |
 | `loom/` | `agentcy-loom` | Comms runtime — brief → draft → render → publish (TypeScript) |
-| `pulse/` | `agentcy-pulse` | Measurement + calibration — run_result.v1 → performance.v1 |
+| `pulse/` | `agentcy-pulse` | Measurement + calibration + study — run_result.v1 → performance.v1 |
 
 ## Pipeline
 
@@ -27,6 +27,13 @@ agentcy-pulse calibrate --forecast ... --performance ... --json                 
 
 Each tool reads a protocol artifact from the prior step and emits one for the next.
 
+The root dispatcher now also exposes a lightweight pipeline layer:
+- `agentcy pipeline run ...` persists a pipeline manifest under `artifacts/pipelines/<pipeline_id>/manifest.json`, writes a module-first bundle (`vox/`, `compass/`, `echo/`, `loom/`, `pulse/`, `reports/`), supports stable named folders via `--pipeline-id`, can save `--persona-eval`, and can optionally kick off `--loom-workflow ...`
+- `agentcy pipeline run --mode preview` auto-approves/publishes loom as a dry run and writes an honest `pulse/preview.json` note instead of pretending a canonical `performance.v1` exists
+- `agentcy pipeline update --manifest ... --run-result ... --performance ...` backfills later-stage canonical artifact paths after loom publish / pulse adapt finish
+- `agentcy pipeline study --manifest ...` reopens that manifest and runs `agentcy-pulse study` with auto-discovered forecast / echo / persona sidecars
+- root `--provider` and `--model` flags are forwarded as `LLM_PROVIDER` / `CLAUDE_MODEL` to members that support them; the pipeline layer also maps compatible values onto Compass as `BRANDOPS_LLM_PROVIDER` / `BRANDOPS_LLM_MODEL`
+
 ## Setup
 
 ```bash
@@ -38,6 +45,7 @@ uv sync --all-extras --group dev
 
 # TypeScript (loom)
 cd loom/runtime && pnpm install
+# Protocol seam tests call the loom launcher, so this install is also required for `make check-python`
 
 # Full live pipeline (echo simulation requires Python 3.11 + simulation extra)
 make pipeline brand=givecare persona=my-persona files=docs/ req="predict adoption" sidecar=sidecar.json
@@ -65,10 +73,14 @@ All inter-tool contracts live in `protocols/`:
 
 Current operator contract:
 - `agentcy doctor --json` returns the normalized suite-wide readiness envelope
-- `agentcy-pulse --json` now emits `{"status": "ok"|"error", "command": str, "data": {...}}`
+- `agentcy catalog --json` returns suite/member ownership, install profiles, and positioning metadata in one root envelope
+- `agentcy quickstart --profile ... --json` returns the smallest install path for a chosen suite profile
+- `agentcy-pulse --json` now emits `{"status": "ok"|"error", "command": str, "data": {...}}` for `adapt`, `calibrate`, `study`, and `doctor`
 - `agentcy-vox` uses a global `--json` flag
 - `agentcy-echo` and `agentcy-loom` expose subcommand-level `--json`
-- `agentcy-compass` currently prefers `-f json` on data-producing subcommands
+- `agentcy pipeline run/update/study --json` emit root-level normalized envelopes
+- `agentcy member <member> --json ...` wraps any member in one normalized root envelope, even when the member's native JSON contract differs
+- `agentcy-compass` now exposes a global `--json` preference across compatible data-producing commands, plus `--json-envelope` for normalized Compass-local success envelopes
 - Exit: `0` success, `1` user error, `2` runtime error
 
 Do not assume every member subcommand has the same JSON envelope yet; use the documented command form for each tool.
@@ -78,6 +90,8 @@ Do not assume every member subcommand has the same JSON envelope yet; use the do
 - `trash` not `rm`
 - `git add <files>` never `.`
 - echo's `camel-oasis==0.2.5` / `camel-ai==0.2.78` stay pinned — do not upgrade
+- prefer `agentcy-echo run --smoke` when you need a fast e2e artifact proof on Python 3.12 or when the live OASIS runtime is too slow for validation
+- CLI automation for full echo runs should exit cleanly on its own; command-waiting mode is for debug/service workflows, not the operator happy path
 - Never delete `echo/uploads/runs/` — artifacts are immutable products
 - compass persona subcommands are deprecated — use `agentcy-vox` instead
 - pulse absorbs lab: `agentcy-pulse calibrate` replaces `agentcy-lab calibration`
